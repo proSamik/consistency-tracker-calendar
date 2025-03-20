@@ -4,6 +4,8 @@ import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import ProfileWrapper from './ProfileWrapper'
+import ConsistencyCalendar from '@/components/ConsistencyCalendar'
+import Link from 'next/link'
 
 /**
  * Dashboard page that is protected
@@ -81,7 +83,7 @@ export default async function DashboardPage() {
   // User is authenticated, show the dashboard
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
-      <div className="max-w-4xl mx-auto p-8">
+      <div className="max-w-5xl mx-auto p-8">
         <h1 className="text-3xl font-bold mb-6 text-indigo-600">Dashboard</h1>
         
         <div className="bg-white shadow rounded-lg p-6 mb-6">
@@ -96,6 +98,50 @@ export default async function DashboardPage() {
           userId={data.user.id}
           userData={userData}
         />
+
+        {/* Consistency Calendar Section */}
+        {userData?.username && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-semibold mb-4 text-indigo-600">Activity Calendar</h2>
+            <div className="bg-white shadow rounded-lg p-6">
+              <ConsistencyCalendar 
+                username={userData.username} 
+                showSync={true}
+              />
+            </div>
+            
+            <div className="mt-4 bg-indigo-50 p-4 rounded-lg text-sm text-gray-700">
+              <h3 className="font-semibold text-indigo-700 mb-2">About Your Consistency Calendar</h3>
+              <p className="mb-2">
+                This calendar tracks your activities across multiple platforms:
+              </p>
+              <ul className="list-disc pl-5 mb-2 space-y-1">
+                <li>GitHub contributions</li>
+                <li>Twitter posts</li>
+                <li>Instagram content</li>
+                <li>YouTube videos</li>
+              </ul>
+              <p>
+                Use the sync buttons to update your data. Click on any day to see detailed activity information.
+              </p>
+            </div>
+
+            <div className="mt-6 flex items-center">
+              <Link 
+                href={`/${userData.username}/profile`} 
+                className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
+              >
+                <span>View public profile</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </Link>
+              <div className="ml-4 text-sm text-gray-500">
+                Share your consistency calendar with others
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white shadow rounded-lg p-6 mt-6">
           <div className="mt-6">
