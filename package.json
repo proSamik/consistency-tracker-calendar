@@ -3,16 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "npm run db:setup && next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:push": "drizzle-kit push:pg",
+    "db:studio": "drizzle-kit studio",
+    "db:setup": "npm run db:generate && npm run migrate",
+    "migrate": "tsx src/lib/db/migrate.ts"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/postgrest-js": "^1.19.3",
     "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.30.5",
     "drizzle-orm": "^0.40.1",
     "next": "15.2.3",
+    "postgres": "^3.4.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shadcn": "^2.4.0-canary.17"
@@ -26,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
     "tailwindcss": "^4",
+    "tsx": "^4.19.3",
     "typescript": "^5"
   }
 }

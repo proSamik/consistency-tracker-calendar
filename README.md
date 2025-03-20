@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Consistency Tracker
 
-## Getting Started
+A Next.js application that helps you track your social media consistency across different platforms.
 
-First, run the development server:
+## Features
 
+- User authentication with Supabase
+- Social media profile management
+- Dashboard for tracking social media presence
+- Protected routes with middleware
+- Modern UI with Tailwind CSS
+- Automatic database migrations with Drizzle ORM
+
+## Prerequisites
+
+- Node.js 18.x or later
+- npm 9.x or later
+- Supabase account and project
+
+## Setup
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/prosamik/consistency-tracker-calendar.git
+cd consistency-tracker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Create a Supabase project and get your credentials:
+   - Go to [Supabase](https://supabase.com)
+   - Create a new project
+   - Get your project URL and anon key from the project settings
+   - Create a service role key for server-side operations
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Create a `.env` file in the root directory with your Supabase credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
 
-## Learn More
+5. Database Setup:
+   The application uses Drizzle ORM for database management. The schema is defined in `src/lib/db/schema.ts`.
+   
+   Available database commands:
+   ```bash
+   # Generate migration files based on schema changes
+   npm run db:generate
+   
+   # Push schema changes directly to the database
+   npm run db:push
+   
+   # Open Drizzle Studio to view and manage your database
+   npm run db:studio
+   
+   # Run migrations (automatically runs on npm run dev)
+   npm run migrate
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+6. Run the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+7. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── auth/              # Authentication pages
+│   ├── dashboard/         # Dashboard pages
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Landing page
+├── lib/                   # Utility functions and configurations
+│   ├── db/               # Database related code
+│   │   ├── schema.ts     # Database schema definitions
+│   │   ├── index.ts      # Database client setup
+│   │   └── migrate.ts    # Migration script
+│   └── supabase.ts       # Supabase client
+├── drizzle/              # Generated migration files
+└── middleware.ts         # Route protection middleware
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Database Schema
+The application uses the following database schema:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```typescript
+// src/lib/db/schema.ts
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  username: text('username'),
+  full_name: text('full_name'),
+  avatar_url: text('avatar_url'),
+  github_username: text('github_username'),
+  twitter_username: text('twitter_username'),
+  instagram_username: text('instagram_username'),
+  youtube_username: text('youtube_username'),
+});
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
