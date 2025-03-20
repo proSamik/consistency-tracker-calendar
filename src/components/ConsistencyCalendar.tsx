@@ -160,6 +160,8 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     if (!showSync) return;
     
     setSyncing(true);
+    setError(null);
+    
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
@@ -175,10 +177,33 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to sync ${platform} data`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to sync ${platform} data (${response.status})`);
       }
       
-      // Refresh activities data
+      console.log(`Successfully synced ${platform} data`);
+      
+      // Wait a moment to ensure DB updates are complete
+      setTimeout(async () => {
+        // Refresh activities data
+        await refreshActivities();
+        setSyncing(false);
+      }, 500);
+      
+    } catch (err: any) {
+      console.error(`Error syncing ${platform}:`, err);
+      setError(err.message || `Failed to sync ${platform} data`);
+      setSyncing(false);
+    }
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync]);
+
+  /**
+   * Helper function to refresh activities data
+   */
+  const refreshActivities = useCallback(async () => {
+    try {
+      setLoading(true);
+      
       const activitiesResponse = await fetch(
         `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}`
       );
@@ -188,15 +213,15 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       }
       
       const data = await activitiesResponse.json();
+      console.log('Refreshed activities data:', data);
       setActivities(data.activities || []);
-      
-    } catch (err) {
-      console.error(`Error syncing ${platform}:`, err);
-      setError(`Failed to sync ${platform} data`);
+    } catch (err: any) {
+      console.error('Error refreshing activities:', err);
+      setError(err.message || 'Failed to refresh activity data');
     } finally {
-      setSyncing(false);
+      setLoading(false);
     }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate]);
 
   // Calculate color for a cell based on activity count
   const getCellColor = (count: number) => {
