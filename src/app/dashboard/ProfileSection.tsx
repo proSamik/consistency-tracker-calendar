@@ -10,7 +10,8 @@ import { useRouter } from 'next/navigation'
  */
 interface ProfileSectionProps {
   userId: string
-  userData: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userData: Record<string, any> | null
 }
 
 export default function ProfileSection({ userId, userData }: ProfileSectionProps) {
@@ -31,6 +32,20 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
     instagramUsername: userData?.instagram_username || '',
     youtubeUsername: userData?.youtube_username || '',
   })
+  
+  // Handle case when userData is null or undefined
+  if (!userData) {
+    return (
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-indigo-600">Profile Information</h2>
+        </div>
+        <div className="p-4 text-gray-600">
+          Loading profile information...
+        </div>
+      </div>
+    )
+  }
   
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
