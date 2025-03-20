@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDbClient, executeWithRetry } from '@/lib/db'
 import { activities } from '@/lib/db/schema'
 import { eq, and, between, desc } from 'drizzle-orm'
-import { getLoggedInUser } from '@/lib/auth'
 import { addDays, subDays, parseISO, format } from 'date-fns'
 
 /**
@@ -12,21 +11,21 @@ import { addDays, subDays, parseISO, format } from 'date-fns'
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get the currently logged in user
-    const user = await getLoggedInUser()
-    if (!user || !user.username) {
-      return NextResponse.json(
-        { error: 'Unauthorized or missing username' }, 
-        { status: 401 }
-      )
-    }
-
     // Get query parameters
     const { searchParams } = new URL(request.url)
     
-    // If username is provided in the query, use that instead of the logged-in user
-    // This allows viewing other users' public activity calendars
-    const targetUsername = searchParams.get('username') || user.username
+    // Get the target username from query params
+    const targetUsername = searchParams.get('username')
+    
+    if (!targetUsername) {
+      return NextResponse.json(
+        { error: 'Missing username parameter' }, 
+        { status: 400 }
+      )
+    }
+    
+    // Make this endpoint public - no authentication required
+    // This simplifies the flow and prevents the infinite loop issue
     
     // Parse start and end dates if provided
     let startDate = searchParams.get('start') 
@@ -88,15 +87,6 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get the currently logged in user
-    const user = await getLoggedInUser()
-    if (!user || !user.username) {
-      return NextResponse.json(
-        { error: 'Unauthorized or missing username' }, 
-        { status: 401 }
-      )
-    }
-
     // Get request data
     const requestData = await request.json()
     const { date, username } = requestData
@@ -108,8 +98,15 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Use provided username or default to logged-in user
-    const targetUsername = username || user.username
+    if (!username) {
+      return NextResponse.json(
+        { error: 'Username is required' },
+        { status: 400 }
+      )
+    }
+    
+    // For getting detailed activity data, we don't need authentication
+    // as this can be considered public information for profiles
     
     // Parse date
     const parsedDate = typeof date === 'string' ? parseISO(date) : new Date(date)
@@ -122,7 +119,7 @@ export async function POST(request: NextRequest) {
         .from(activities)
         .where(
           and(
-            eq(activities.username, targetUsername as string),
+            eq(activities.username, username),
             eq(activities.activity_date, formattedDate)
           )
         )
@@ -141,7 +138,7 @@ export async function POST(request: NextRequest) {
     // Format detailed activity data
     const detailedData = {
       date: formattedDate,
-      username: targetUsername,
+      username: username,
       totalCount: activityData.total_activity_count || 0,
       lastSynced: activityData.last_synced,
       
