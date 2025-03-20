@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { createDbClient } from '@/lib/db'
+import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq, and, not } from 'drizzle-orm'
 
@@ -51,16 +51,18 @@ export async function POST(request: Request) {
     }
     
     // Check if username is already taken by another user
-    const existingUser = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(
-        and(
-          eq(users.username, username),
-          not(eq(users.id, id))
+    const existingUser = await executeWithRetry(async () => {
+      return db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            eq(users.username, username),
+            not(eq(users.id, id))
+          )
         )
-      )
-      .limit(1)
+        .limit(1)
+    })
     
     if (existingUser.length > 0) {
       return NextResponse.json(
@@ -70,17 +72,19 @@ export async function POST(request: Request) {
     }
     
     // Update user profile in database
-    await db.update(users)
-      .set({
-        full_name: fullName || null,
-        username: username,
-        github_username: github_username || null,
-        twitter_username: twitter_username || null,
-        instagram_username: instagram_username || null,
-        youtube_username: youtube_username || null,
-        updated_at: new Date(),
-      })
-      .where(eq(users.id, id))
+    await executeWithRetry(async () => {
+      return db.update(users)
+        .set({
+          full_name: fullName || null,
+          username: username,
+          github_username: github_username || null,
+          twitter_username: twitter_username || null,
+          instagram_username: instagram_username || null,
+          youtube_username: youtube_username || null,
+          updated_at: new Date(),
+        })
+        .where(eq(users.id, id))
+    })
     
     return NextResponse.json({ success: true })
   } catch (error) {
