@@ -18,23 +18,25 @@ export default async function DashboardPage() {
 
   // User is authenticated, show the dashboard
   return (
-    <div className="max-w-4xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-      
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Welcome {data.user.email}</h2>
-        <p className="text-gray-600 mb-4">
-          You are logged in and can access protected content.
-        </p>
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="max-w-4xl mx-auto p-8">
+        <h1 className="text-3xl font-bold mb-6 text-indigo-600">Dashboard</h1>
         
-        <form action="/auth/signout" method="post">
-          <button 
-            type="submit"
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Sign Out
-          </button>
-        </form>
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Welcome {data.user.email}</h2>
+          <p className="text-gray-600 mb-4">
+            You are logged in and can access protected content.
+          </p>
+          
+          <form action="/auth/signout" method="post">
+            <button 
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Sign Out
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
