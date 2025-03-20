@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createDbClient } from '@/lib/db'
+import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
@@ -21,12 +21,14 @@ export async function GET(request: Request) {
   try {
     const db = createDbClient()
     
-    // Check if username already exists
-    const existingUser = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1)
+    // Check if username already exists with retry logic
+    const existingUser = await executeWithRetry(async () => {
+      return db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1)
+    })
     
     if (existingUser.length > 0) {
       return NextResponse.json(
