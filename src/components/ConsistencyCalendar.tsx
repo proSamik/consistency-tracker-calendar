@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   subDays,
   addDays,
@@ -10,7 +10,9 @@ import {
   format,
   parseISO,
   isSameDay,
-  isAfter
+  isAfter,
+  startOfYear,
+  endOfYear
 } from 'date-fns'
 import ActivityDetails from '@/components/ActivityDetails'
 
@@ -41,29 +43,74 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
   const [yearOffset, setYearOffset] = useState(0)
   const [syncing, setSyncing] = useState(false)
 
-  // Calculate date range
-  const today = new Date()
-  const endDate = yearOffset === 0 
-    ? today 
-    : new Date(today.getFullYear() - yearOffset, 11, 31)
-  const startDate = new Date(endDate.getFullYear(), 0, 1)
+  // Calculate date range using useMemo to prevent recalculations on every render
+  const dateRange = useMemo(() => {
+    const today = new Date()
+    const currentYear = today.getFullYear() - yearOffset
+    
+    // Using startOfYear and endOfYear ensures stable date objects
+    const start = startOfYear(new Date(currentYear, 0, 1))
+    const end = yearOffset === 0 ? today : endOfYear(new Date(currentYear, 0, 1))
+    
+    return {
+      startDate: start,
+      endDate: end,
+      formattedStartDate: format(start, 'yyyy-MM-dd'),
+      formattedEndDate: format(end, 'yyyy-MM-dd'),
+    }
+  }, [yearOffset]) // Only recalculate when yearOffset changes
 
-  // Fetch activities data
+  // Memoize calendar generation to prevent recalculation on every render
+  const { months, weeks } = useMemo(() => {
+    const monthsArray = []
+    
+    // Generate months for the year
+    for (let month = 0; month < 12; month++) {
+      const monthDate = new Date(dateRange.startDate.getFullYear(), month, 1)
+      monthsArray.push({
+        name: format(monthDate, 'MMM'),
+        date: monthDate
+      })
+    }
+    
+    // Generate weeks (Sunday to Saturday)
+    const weeksArray = []
+    let currentDate = startOfWeek(dateRange.startDate, { weekStartsOn: 0 })
+    const calendarEndDate = endOfWeek(dateRange.endDate, { weekStartsOn: 0 })
+    
+    while (currentDate <= calendarEndDate) {
+      const week = eachDayOfInterval({
+        start: currentDate,
+        end: addDays(currentDate, 6)
+      })
+      
+      weeksArray.push(week)
+      currentDate = addDays(currentDate, 7)
+    }
+    
+    return { months: monthsArray, weeks: weeksArray }
+  }, [dateRange.startDate, dateRange.endDate])
+
+  // Fetch activities data with stronger dependency control
   useEffect(() => {
     let isMounted = true;
+    let controller: AbortController | null = new AbortController();
     
     async function fetchActivities() {
       if (!username) return;
+      
+      // Don't reload if already loading - prevents multiple simultaneous requests
+      if (loading && controller) return;
       
       setLoading(true);
       setError(null);
       
       try {
-        const formattedStartDate = format(startDate, 'yyyy-MM-dd');
-        const formattedEndDate = format(endDate, 'yyyy-MM-dd');
+        controller = new AbortController();
         
         const response = await fetch(
-          `/api/activities?username=${username}&start=${formattedStartDate}&end=${formattedEndDate}`
+          `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}`,
+          { signal: controller.signal }
         );
         
         if (!isMounted) return;
@@ -81,12 +128,19 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
         
         const data = await response.json();
         setActivities(data.activities || []);
-      } catch (err) {
+      } catch (err: any) {
+        // Don't set error state if the request was aborted
+        if (err.name === 'AbortError') {
+          console.log('Activities fetch aborted');
+          return;
+        }
+        
         console.error('Error fetching activities:', err);
         setError('Failed to load activity data');
       } finally {
         if (isMounted) {
           setLoading(false);
+          controller = null;
         }
       }
     }
@@ -95,16 +149,19 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     
     return () => {
       isMounted = false;
+      if (controller) {
+        controller.abort();
+      }
     };
-  }, [username, startDate, endDate, yearOffset]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate]);
 
-  // Handle syncing activities for a specific platform
-  const syncPlatform = async (platform: string) => {
-    if (!showSync) return
+  // Handle syncing activities for a specific platform with useCallback
+  const syncPlatform = useCallback(async (platform: string) => {
+    if (!showSync) return;
     
-    setSyncing(true)
+    setSyncing(true);
     try {
-      const today = format(new Date(), 'yyyy-MM-dd')
+      const today = format(new Date(), 'yyyy-MM-dd');
       
       const response = await fetch(`/api/sync/${platform === 'github' ? 'github' : 'apify'}`, {
         method: 'POST',
@@ -115,31 +172,31 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
           date: today,
           ...(platform !== 'github' && { platform }),
         }),
-      })
+      });
       
       if (!response.ok) {
-        throw new Error(`Failed to sync ${platform} data`)
+        throw new Error(`Failed to sync ${platform} data`);
       }
       
       // Refresh activities data
       const activitiesResponse = await fetch(
-        `/api/activities?username=${username}&start=${format(startDate, 'yyyy-MM-dd')}&end=${format(endDate, 'yyyy-MM-dd')}`
-      )
+        `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}`
+      );
       
       if (!activitiesResponse.ok) {
-        throw new Error('Failed to refresh activity data')
+        throw new Error('Failed to refresh activity data');
       }
       
-      const data = await activitiesResponse.json()
-      setActivities(data.activities || [])
+      const data = await activitiesResponse.json();
+      setActivities(data.activities || []);
       
     } catch (err) {
-      console.error(`Error syncing ${platform}:`, err)
-      setError(`Failed to sync ${platform} data`)
+      console.error(`Error syncing ${platform}:`, err);
+      setError(`Failed to sync ${platform} data`);
     } finally {
-      setSyncing(false)
+      setSyncing(false);
     }
-  }
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync]);
 
   // Calculate color for a cell based on activity count
   const getCellColor = (count: number) => {
@@ -150,41 +207,8 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     return 'bg-emerald-500'
   }
 
-  // Generate calendar grid
-  const generateCalendar = () => {
-    const months = []
-    
-    // Generate months for the year
-    for (let month = 0; month < 12; month++) {
-      const monthDate = new Date(startDate.getFullYear(), month, 1)
-      months.push({
-        name: format(monthDate, 'MMM'),
-        date: monthDate
-      })
-    }
-    
-    // Generate weeks (Sunday to Saturday)
-    const weeks = []
-    let currentDate = startOfWeek(startDate, { weekStartsOn: 0 })
-    const calendarEndDate = endOfWeek(endDate, { weekStartsOn: 0 })
-    
-    while (currentDate <= calendarEndDate) {
-      const week = eachDayOfInterval({
-        start: currentDate,
-        end: addDays(currentDate, 6)
-      })
-      
-      weeks.push(week)
-      currentDate = addDays(currentDate, 7)
-    }
-    
-    return { months, weeks }
-  }
-  
-  const { months, weeks } = generateCalendar()
-
   // Handle clicking on a day cell
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = useCallback((date: Date) => {
     // Don't allow selecting future dates
     if (isAfter(date, new Date())) {
       return
@@ -193,24 +217,24 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     const formattedDate = format(date, 'yyyy-MM-dd')
     setSelectedDate(formattedDate)
     setShowDetails(true)
-  }
+  }, []);
 
   // Close details modal
-  const handleCloseDetails = () => {
+  const handleCloseDetails = useCallback(() => {
     setShowDetails(false)
-  }
+  }, []);
 
   // Change year offset
-  const changeYear = (offset: number) => {
-    setYearOffset(offset)
-  }
+  const changeYear = useCallback((offset: number) => {
+    setYearOffset(offset);
+  }, []);
   
   return (
     <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold">
           {activities.length > 0 
-            ? `${activities.reduce((sum, a) => sum + a.count, 0)} contributions in ${startDate.getFullYear()}`
+            ? `${activities.reduce((sum, a) => sum + a.count, 0)} contributions in ${dateRange.startDate.getFullYear()}`
             : 'Consistency Calendar'}
         </h2>
         
@@ -267,98 +291,82 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
           {error}
         </div>
       )}
-
+      
       {loading ? (
-        <div className="h-64 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="flex justify-center items-center h-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <div className="min-w-max">
+          <div className="grid grid-cols-[auto_1fr] gap-2">
             {/* Month labels */}
-            <div className="flex mb-1 text-xs text-gray-400">
-              <div className="w-10"></div>
-              <div className="flex">
-                {months.map((month, i) => (
-                  <div key={i} className="w-7 mx-0.5 text-center">
-                    {month.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Days of week and calendar grid */}
-            <div className="flex">
-              {/* Day labels */}
-              <div className="flex flex-col mr-2 text-xs text-gray-400">
-                <div className="h-7 flex items-center">Mon</div>
-                <div className="h-7 flex items-center">Wed</div>
-                <div className="h-7 flex items-center">Fri</div>
-              </div>
-              
-              {/* Calendar grid */}
-              <div>
-                <div className="grid grid-cols-53 gap-1">
-                  {weeks.map((week, weekIndex) => (
-                    <div key={weekIndex} className="flex flex-col gap-1">
-                      {week.map((day, dayIndex) => {
-                        // Find activity for this day
-                        const dayStr = format(day, 'yyyy-MM-dd')
-                        const activity = activities.find(a => 
-                          a.date === dayStr
-                        )
-                        
-                        // Skip days outside our target year
-                        if (day.getFullYear() !== startDate.getFullYear()) {
-                          return <div key={dayIndex} className="w-5 h-5"></div>
-                        }
-                        
-                        const count = activity?.count || 0
-                        const isFuture = isAfter(day, new Date())
-                        
-                        return (
-                          <div
-                            key={dayIndex}
-                            className={`
-                              w-5 h-5 rounded-sm cursor-pointer
-                              ${isFuture ? 'bg-gray-800 opacity-30 cursor-default' : getCellColor(count)}
-                              transition-colors duration-200
-                            `}
-                            onClick={() => !isFuture && handleDayClick(day)}
-                            title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
-                            data-date={dayStr}
-                          />
-                        )
-                      })}
-                    </div>
-                  ))}
+            <div className="col-start-2 flex">
+              {months.map((month, i) => (
+                <div key={i} className="flex-1 text-center text-xs text-gray-400">
+                  {month.name}
                 </div>
-              </div>
+              ))}
             </div>
             
-            {/* Legend */}
-            <div className="flex justify-end mt-2 text-xs text-gray-400 items-center">
-              <span className="mr-2">Less</span>
-              <div className="flex space-x-1">
-                <div className="w-3 h-3 rounded-sm bg-gray-800"></div>
-                <div className="w-3 h-3 rounded-sm bg-emerald-900"></div>
-                <div className="w-3 h-3 rounded-sm bg-emerald-700"></div>
-                <div className="w-3 h-3 rounded-sm bg-emerald-600"></div>
-                <div className="w-3 h-3 rounded-sm bg-emerald-500"></div>
-              </div>
-              <span className="ml-2">More</span>
+            {/* Day labels and cells */}
+            <div className="flex flex-col justify-around h-full py-1">
+              <div className="text-xs text-gray-400">Mon</div>
+              <div className="text-xs text-gray-400">Wed</div>
+              <div className="text-xs text-gray-400">Fri</div>
+            </div>
+            
+            <div className="grid grid-cols-52 gap-1">
+              {weeks.map((week, weekIndex) => (
+                <div key={weekIndex} className="flex flex-col gap-1">
+                  {week.map((day, dayIndex) => {
+                    // Find activity for this day if any
+                    const activity = activities.find(a => 
+                      isSameDay(parseISO(a.date), day)
+                    )
+                    
+                    // Skip days outside our target year
+                    if (day.getFullYear() !== dateRange.startDate.getFullYear()) {
+                      return <div key={dayIndex} className="w-5 h-5"></div>
+                    }
+                    
+                    const count = activity ? activity.count : 0
+                    const colorClass = getCellColor(count)
+                    
+                    return (
+                      <div
+                        key={dayIndex}
+                        className={`w-5 h-5 rounded-sm ${colorClass} cursor-pointer hover:opacity-80 transition-opacity`}
+                        title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
+                        onClick={() => handleDayClick(day)}
+                      ></div>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
       
-      {/* Activity details modal */}
+      {/* Legend */}
+      <div className="mt-4 flex items-center justify-center text-sm">
+        <span className="mr-2">Less</span>
+        <div className="flex gap-1">
+          <div className="w-4 h-4 bg-gray-800 rounded-sm"></div>
+          <div className="w-4 h-4 bg-emerald-900 rounded-sm"></div>
+          <div className="w-4 h-4 bg-emerald-700 rounded-sm"></div>
+          <div className="w-4 h-4 bg-emerald-600 rounded-sm"></div>
+          <div className="w-4 h-4 bg-emerald-500 rounded-sm"></div>
+        </div>
+        <span className="ml-2">More</span>
+      </div>
+      
+      {/* Details Modal */}
       {showDetails && selectedDate && (
-        <ActivityDetails
+        <ActivityDetails 
           username={username}
-          date={selectedDate}
-          onClose={handleCloseDetails}
-          canSync={showSync}
+          date={selectedDate} 
+          onClose={handleCloseDetails} 
         />
       )}
     </div>
