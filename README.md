@@ -19,11 +19,9 @@ A Next.js application that helps you track your social media consistency across 
 
 ## Setup
 
-1. Clone the repository:
-```bash
+1. Clone the repository:```bash
 git clone https://github.com/prosamik/consistency-tracker-calendar.git
-cd consistency-tracker
-```
+cd consistency-tracker```
 
 2. Install dependencies:
 ```bash
@@ -107,6 +105,13 @@ export const users = pgTable('users', {
 });
 ```
 
+When you accidentally delete your migrations directory but the database schema still exists, the best approach is:
+1. Run `npm run db:sync` to create placeholder migrations that match your database state.
+2. Run `npm run db:mark-applied` to mark all migrations as applied without executing them.
+3. Run `npm run db:generate` to keep your schema in sync going forward.
+You can now continue development normally, as the migration state has been properly restored.
+
+
 ## Contributing
 
 1. Fork the repository
@@ -118,3 +123,5 @@ export const users = pgTable('users', {
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+

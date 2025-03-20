@@ -21,5 +21,5 @@ export default {
     url: process.env.DATABASE_URL,
   },
   verbose: true,
-  strict: true,
+  strict: true
 } satisfies Config; 
