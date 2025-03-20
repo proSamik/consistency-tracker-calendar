@@ -16,6 +16,7 @@
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/postgrest-js": "^1.19.3",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.1",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.5",

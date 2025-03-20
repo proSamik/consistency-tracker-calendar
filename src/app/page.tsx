@@ -1,51 +1,14 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/server';
 
-export default function LandingPage() {
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  /**
-   * Checks if user is authenticated on component mount
-   */
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsAuthenticated(!!session);
-      } catch (error) {
-        console.error('Error checking auth:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    checkAuth();
-  }, []);
-
-  /**
-   * Handles redirection to dashboard or auth based on authentication status
-   */
-  const handleGetStarted = () => {
-    if (isAuthenticated) {
-      router.push('/dashboard');
-    } else {
-      router.push('/auth');
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-xl">Loading...</p>
-      </div>
-    );
-  }
+/**
+ * Landing page with authentication awareness
+ */
+export default async function LandingPage() {
+  // Get authentication status from server
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const isAuthenticated = !!data.user;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
@@ -64,7 +27,7 @@ export default function LandingPage() {
               </Link>
             ) : (
               <Link
-                href="/auth"
+                href="/login"
                 className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
               >
                 Sign In
@@ -83,12 +46,12 @@ export default function LandingPage() {
             Manage all your social media profiles in one place. Keep track of your online presence
             across GitHub, Twitter, Instagram, and YouTube.
           </p>
-          <button
-            onClick={handleGetStarted}
-            className="rounded-md bg-indigo-600 px-8 py-4 text-lg font-medium text-white shadow-md hover:bg-indigo-700"
+          <Link
+            href={isAuthenticated ? "/dashboard" : "/login"}
+            className="inline-block rounded-md bg-indigo-600 px-8 py-4 text-lg font-medium text-white shadow-md hover:bg-indigo-700"
           >
             Get Started
-          </button>
+          </Link>
         </div>
 
         <div className="mt-20 grid gap-8 md:grid-cols-3">
