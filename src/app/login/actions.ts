@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { createDbClient } from '@/lib/db'
 import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 /**
  * Handles login form submission
@@ -34,20 +35,44 @@ export async function login(formData: FormData) {
 /**
  * Handles signup form submission
  * Creates a new user with email and password
- * Also initializes user profile data in the database
+ * Collects profile information during signup
+ * Validates username uniqueness before creating account
  */
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
+  // Get form data
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  const username = formData.get('username') as string
+  const fullName = formData.get('fullName') as string
+  const githubUsername = formData.get('github_username') as string
+  const twitterUsername = formData.get('twitter_username') as string
+  const instagramUsername = formData.get('instagram_username') as string
+  const youtubeUsername = formData.get('youtube_username') as string
+  
+  // Validate required fields
+  if (!email || !password || !username) {
+    redirect('/error?message=Missing+required+fields')
+  }
+  
+  // Check if username is already taken
+  const db = createDbClient()
+  const existingUser = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1)
+  
+  if (existingUser.length > 0) {
+    redirect('/login?error=username_taken')
   }
 
   // Sign up the user with Supabase Auth
-  const { data: authData, error } = await supabase.auth.signUp(data)
+  const { data: authData, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
 
   if (error || !authData.user) {
     console.error('Signup error:', error)
@@ -55,22 +80,19 @@ export async function signup(formData: FormData) {
   }
 
   try {
-    // Create user profile in the database
-    const db = createDbClient()
-    
-    // Create a new user record with default values
+    // Create user profile in the database with provided information
     const newUser = {
       id: authData.user.id,
       email: authData.user.email || '',
       created_at: new Date(),
       updated_at: new Date(),
-      username: null,
-      full_name: null,
+      username: username,
+      full_name: fullName || null,
       avatar_url: null,
-      github_username: null,
-      twitter_username: null,
-      instagram_username: null,
-      youtube_username: null,
+      github_username: githubUsername || null,
+      twitter_username: twitterUsername || null,
+      instagram_username: instagramUsername || null,
+      youtube_username: youtubeUsername || null,
     }
     
     // Insert the new user into the database
