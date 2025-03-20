@@ -56,16 +56,16 @@ export async function POST(request: NextRequest) {
   try {
     // Get the currently logged in user
     const user = await getLoggedInUser()
-    if (!user || !user.username) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized or missing username' }, 
+        { error: 'Authentication required. Please log in.' }, 
         { status: 401 }
       )
     }
 
     // Get request data
-    const requestData = await request.json()
-    const { date } = requestData
+    const requestData = await request.json().catch(() => ({}))
+    const { date, token: userProvidedToken } = requestData
     
     // Parse date or use current date if not provided
     const targetDate = date ? parseISO(date) : new Date()
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     const userData = await executeWithRetry(async () => {
       const userResults = await db.select()
         .from(users)
-        .where(eq(users.username, user.username as string))
+        .where(eq(users.id, user.id))
         .limit(1)
       
       if (userResults.length > 0) {
@@ -85,18 +85,25 @@ export async function POST(request: NextRequest) {
       return null
     })
     
-    if (!userData || !userData.github_username) {
+    if (!userData) {
       return NextResponse.json(
-        { error: 'GitHub username not found in profile' },
+        { error: 'User profile not found. Please complete your profile first.' },
         { status: 400 }
       )
     }
 
-    // Fetch GitHub contributions using GitHub GraphQL API
-    const githubToken = process.env.GITHUB_TOKEN
+    if (!userData.github_username) {
+      return NextResponse.json(
+        { error: 'GitHub username not found in your profile. Please add your GitHub username first.' },
+        { status: 400 }
+      )
+    }
+
+    // Use token from request if provided, otherwise use environment variable
+    const githubToken = userProvidedToken || process.env.GITHUB_TOKEN
     if (!githubToken) {
       return NextResponse.json(
-        { error: 'GitHub token not configured' },
+        { error: 'GitHub token not configured. Please provide a token in the request or configure it in the environment.' },
         { status: 500 }
       )
     }
@@ -108,12 +115,15 @@ export async function POST(request: NextRequest) {
     const toDate = new Date(targetDate)
     toDate.setHours(23, 59, 59, 999)
     
+    console.log(`Syncing GitHub activities for user: ${userData.github_username}, date: ${formattedDate}`);
+    
     // Query GitHub API
     const response = await fetch('https://api.github.com/graphql', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${githubToken}`,
         'Content-Type': 'application/json',
+        'User-Agent': 'ConsistencyTracker-App',
       },
       body: JSON.stringify({
         query: GITHUB_CONTRIBUTIONS_QUERY,
@@ -123,13 +133,48 @@ export async function POST(request: NextRequest) {
           to: formatISO(toDate)
         }
       })
-    })
+    });
 
+    // Handle GitHub API errors
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.statusText}`)
+      const errorText = await response.text();
+      console.error(`GitHub API error (${response.status}): ${errorText}`);
+      
+      let errorMessage = `GitHub API error: ${response.statusText}`;
+      
+      if (response.status === 401) {
+        errorMessage = 'GitHub API authentication failed. The token may be invalid or expired.';
+      } else if (response.status === 403) {
+        errorMessage = 'GitHub API rate limit exceeded or insufficient permissions.';
+      } else if (response.status === 404) {
+        errorMessage = `GitHub user "${userData.github_username}" not found.`;
+      }
+      
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: response.status }
+      );
     }
 
     const githubData = await response.json()
+    
+    // Check for GraphQL API errors
+    if (githubData.errors) {
+      console.error('GitHub GraphQL API errors:', githubData.errors);
+      const errorMessage = githubData.errors.map((e: any) => e.message).join(', ');
+      return NextResponse.json(
+        { error: `GitHub GraphQL API error: ${errorMessage}` },
+        { status: 400 }
+      );
+    }
+    
+    // Check if user data exists in the response
+    if (!githubData.data?.user) {
+      return NextResponse.json(
+        { error: `GitHub user "${userData.github_username}" not found or is not accessible with the current token.` },
+        { status: 404 }
+      );
+    }
     
     // Extract contribution data for the specific date
     const contributionData = extractContributionData(githubData, formattedDate)
@@ -141,7 +186,7 @@ export async function POST(request: NextRequest) {
         .from(activities)
         .where(
           and(
-            eq(activities.username, user.username as string),
+            eq(activities.username, userData.username || ''),
             eq(activities.activity_date, formattedDate)
           )
         )
@@ -167,7 +212,7 @@ export async function POST(request: NextRequest) {
           })
           .where(
             and(
-              eq(activities.username, user.username as string),
+              eq(activities.username, userData.username || ''),
               eq(activities.activity_date, formattedDate)
             )
           )
@@ -175,7 +220,7 @@ export async function POST(request: NextRequest) {
         // Insert new record
         await db.insert(activities)
           .values({
-            username: user.username as string,
+            username: userData.username || '',
             activity_date: formattedDate,
             github_data: {
               contributions: contributionCount,
@@ -192,12 +237,15 @@ export async function POST(request: NextRequest) {
       date: formattedDate,
       data: contributionData
     })
-  } catch (error) {
-    console.error('Error syncing GitHub contributions:', error)
+  } catch (error: any) {
+    console.error('Error syncing GitHub contributions:', error);
     return NextResponse.json(
-      { error: 'Failed to sync GitHub contributions' },
+      { 
+        error: 'Failed to sync GitHub contributions',
+        details: error.message || String(error)
+      },
       { status: 500 }
-    )
+    );
   }
 }
 
