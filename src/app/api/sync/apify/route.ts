@@ -14,6 +14,11 @@ function formatDate(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
 
+// Type guard for platform string
+function isPlatform(value: string): value is 'twitter' | 'instagram' | 'youtube' {
+  return ['twitter', 'instagram', 'youtube'].includes(value);
+}
+
 /**
  * API route to sync social media data from Apify
  * @param request The incoming request
@@ -23,9 +28,9 @@ export async function POST(request: NextRequest) {
   try {
     // Get the currently logged in user
     const user = await getLoggedInUser()
-    if (!user || !user.username) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized or missing username' }, 
+        { error: 'Authentication required. Please log in.' }, 
         { status: 401 }
       )
     }
@@ -34,7 +39,7 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json()
     const { date, platform } = requestData
     
-    if (!platform || !['twitter', 'instagram', 'youtube'].includes(platform)) {
+    if (!platform || !isPlatform(platform)) {
       return NextResponse.json(
         { error: 'Invalid or missing platform. Must be twitter, instagram, or youtube' },
         { status: 400 }
@@ -50,7 +55,7 @@ export async function POST(request: NextRequest) {
     const userData = await executeWithRetry(async () => {
       const userResults = await db.select()
         .from(users)
-        .where(eq(users.username, user.username as string))
+        .where(eq(users.id, user.id))
         .limit(1)
       
       if (userResults.length > 0) {
@@ -67,7 +72,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the appropriate username for the requested platform
-    const platformUsername = userData[`${platform}_username`]
+    let platformUsername: string | null = null;
+    
+    // Type-safe access for each platform
+    if (platform === 'twitter') {
+      platformUsername = userData.twitter_username;
+    } else if (platform === 'instagram') {
+      platformUsername = userData.instagram_username;
+    } else if (platform === 'youtube') {
+      platformUsername = userData.youtube_username;
+    }
     
     if (!platformUsername) {
       return NextResponse.json(
@@ -95,7 +109,7 @@ export async function POST(request: NextRequest) {
         .from(activities)
         .where(
           and(
-            eq(activities.username, user.username as string),
+            eq(activities.username, userData.username || ''),
             eq(activities.activity_date, formattedDate)
           )
         )
@@ -103,10 +117,19 @@ export async function POST(request: NextRequest) {
       
       // Calculate the count to add to total_activity_count
       const countToAdd = getPlatformItemCount(platformData)
+      
       // Calculate the count to subtract from existing record (if any)
-      const countToSubtract = existingActivity.length > 0 
-        ? getPlatformItemCount(existingActivity[0][`${platform}_data`]) 
-        : 0
+      let countToSubtract = 0;
+      if (existingActivity.length > 0) {
+        // Type-safe access to platform data
+        if (platform === 'twitter') {
+          countToSubtract = getPlatformItemCount(existingActivity[0].twitter_data);
+        } else if (platform === 'instagram') {
+          countToSubtract = getPlatformItemCount(existingActivity[0].instagram_data);
+        } else if (platform === 'youtube') {
+          countToSubtract = getPlatformItemCount(existingActivity[0].youtube_data);
+        }
+      }
       
       if (existingActivity.length > 0) {
         // Update existing record with new platform data
@@ -116,28 +139,40 @@ export async function POST(request: NextRequest) {
           total_activity_count: (existingActivity[0].total_activity_count || 0) - countToSubtract + countToAdd
         }
         
-        // Add platform-specific data
-        updateData[`${platform}_data`] = platformData
+        // Add platform-specific data in a type-safe way
+        if (platform === 'twitter') {
+          updateData.twitter_data = platformData;
+        } else if (platform === 'instagram') {
+          updateData.instagram_data = platformData;
+        } else if (platform === 'youtube') {
+          updateData.youtube_data = platformData;
+        }
         
         await db.update(activities)
           .set(updateData)
           .where(
             and(
-              eq(activities.username, user.username as string),
+              eq(activities.username, userData.username || ''),
               eq(activities.activity_date, formattedDate)
             )
           )
       } else {
         // Insert new record
         const insertData: any = {
-          username: user.username as string,
+          username: userData.username || '',
           activity_date: formattedDate,
           last_synced: new Date(),
           total_activity_count: countToAdd
         }
         
-        // Add platform-specific data
-        insertData[`${platform}_data`] = platformData
+        // Add platform-specific data in a type-safe way
+        if (platform === 'twitter') {
+          insertData.twitter_data = platformData;
+        } else if (platform === 'instagram') {
+          insertData.instagram_data = platformData;
+        } else if (platform === 'youtube') {
+          insertData.youtube_data = platformData;
+        }
         
         await db.insert(activities).values(insertData)
       }
@@ -175,66 +210,132 @@ async function fetchPlatformData(
   const actorId = getActorId(platform)
   const formattedDate = formatDate(date)
   
-  const input = {
-    username,
-    startDate: formattedDate,
-    endDate: formattedDate
+  console.log(`Starting Apify actor run for ${platform}, actor: ${actorId}, username: ${username}, date: ${formattedDate}`)
+  
+  let input = {}
+  
+  // Different platforms need different input formats
+  if (platform === 'twitter') {
+    input = {
+      searchTerms: [`from:${username}`],
+      maxTweets: 50,
+      startFromDate: formattedDate,
+      endAtDate: formattedDate
+    }
+  } else if (platform === 'instagram') {
+    input = {
+      usernames: [username],
+      resultsLimit: 100,
+      resultsType: 'posts',
+      addParentData: true,
+      proxy: { useApifyProxy: true }
+    }
+  } else if (platform === 'youtube') {
+    input = {
+      searchQueries: [`${username}`],
+      maxResults: 50,
+      startDate: formattedDate,
+      endDate: formattedDate
+    }
   }
   
-  // Call Apify API to start the actor and wait for results
-  const startResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyToken}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ input })
-  })
-  
-  if (!startResponse.ok) {
-    throw new Error(`Apify error starting actor: ${startResponse.statusText}`)
-  }
-  
-  const startData = await startResponse.json()
-  const runId = startData.data.id
-  
-  // Poll for completion
-  const maxAttempts = 30
-  const pollInterval = 2000 // 2 seconds
-  
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Wait before polling
-    await new Promise(resolve => setTimeout(resolve, pollInterval))
+  try {
+    // Call Apify API to start the actor and wait for results
+    console.log(`Calling Apify API with actor ID: ${actorId}`)
+    console.log(`Input data:`, JSON.stringify(input))
     
-    // Check run status
-    const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyToken}`)
+    const startResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyToken}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ input })
+    })
     
-    if (!statusResponse.ok) {
-      throw new Error(`Apify error checking run status: ${statusResponse.statusText}`)
+    if (!startResponse.ok) {
+      const errorText = await startResponse.text().catch(() => startResponse.statusText)
+      console.error(`Apify error starting actor (${startResponse.status}): ${errorText}`)
+      
+      if (startResponse.status === 404) {
+        throw new Error(`Apify actor ID '${actorId}' not found. The actor may have been renamed or removed.`)
+      } else if (startResponse.status === 401) {
+        throw new Error(`Apify authentication failed. Please check your Apify token.`)
+      } else {
+        throw new Error(`Apify error starting actor: ${startResponse.statusText}`)
+      }
     }
     
-    const statusData = await statusResponse.json()
+    const startData = await startResponse.json()
     
-    if (['SUCCEEDED', 'FINISHED'].includes(statusData.data.status)) {
-      // Get dataset items
-      const datasetId = statusData.data.defaultDatasetId
-      const itemsResponse = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyToken}`)
+    if (!startData.data || !startData.data.id) {
+      console.error('Invalid response from Apify:', startData)
+      throw new Error('Invalid response from Apify when starting the actor run')
+    }
+    
+    const runId = startData.data.id
+    console.log(`Apify actor run started with ID: ${runId}`)
+    
+    // Poll for completion
+    const maxAttempts = 30
+    const pollInterval = 2000 // 2 seconds
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Wait before polling
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
       
-      if (!itemsResponse.ok) {
-        throw new Error(`Apify error fetching dataset items: ${itemsResponse.statusText}`)
+      // Check run status
+      console.log(`Polling run status, attempt ${attempt + 1}/${maxAttempts}`)
+      const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyToken}`)
+      
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text().catch(() => statusResponse.statusText)
+        console.error(`Apify error checking run status (${statusResponse.status}): ${errorText}`)
+        throw new Error(`Apify error checking run status: ${statusResponse.statusText}`)
       }
       
-      const items = await itemsResponse.json()
+      const statusData = await statusResponse.json()
+      console.log(`Current run status: ${statusData.data.status}`)
       
-      // Format data based on platform
-      return formatPlatformData(platform, items, formattedDate)
+      if (['SUCCEEDED', 'FINISHED'].includes(statusData.data.status)) {
+        // Get dataset items
+        const datasetId = statusData.data.defaultDatasetId
+        console.log(`Run completed successfully. Fetching results from dataset: ${datasetId}`)
+        
+        if (!datasetId) {
+          console.error('No dataset ID in the response:', statusData)
+          throw new Error('No dataset ID in the Apify response')
+        }
+        
+        const itemsResponse = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyToken}`)
+        
+        if (!itemsResponse.ok) {
+          const errorText = await itemsResponse.text().catch(() => itemsResponse.statusText)
+          console.error(`Apify error fetching dataset items (${itemsResponse.status}): ${errorText}`)
+          throw new Error(`Apify error fetching dataset items: ${itemsResponse.statusText}`)
+        }
+        
+        const items = await itemsResponse.json()
+        console.log(`Retrieved ${items.length} items from dataset`)
+        
+        // Format data based on platform
+        return formatPlatformData(platform, items, formattedDate)
+      }
+      
+      if (['FAILED', 'ABORTED', 'TIMED_OUT'].includes(statusData.data.status)) {
+        console.error(`Apify actor run failed with status: ${statusData.data.status}`)
+        if (statusData.data.errorMessage) {
+          console.error(`Error message: ${statusData.data.errorMessage}`)
+          throw new Error(`Apify actor run failed: ${statusData.data.errorMessage}`)
+        }
+        throw new Error(`Apify actor run failed with status: ${statusData.data.status}`)
+      }
     }
     
-    if (['FAILED', 'ABORTED', 'TIMED_OUT'].includes(statusData.data.status)) {
-      throw new Error(`Apify actor run failed with status: ${statusData.data.status}`)
-    }
+    throw new Error('Apify actor run timed out after maximum polling attempts')
+  } catch (error) {
+    console.error(`Error in fetchPlatformData for ${platform}:`, error)
+    throw error
   }
-  
-  throw new Error('Apify actor run timed out')
 }
 
 /**
@@ -245,11 +346,11 @@ async function fetchPlatformData(
 function getActorId(platform: string): string {
   switch (platform) {
     case 'twitter':
-      return 'apify/twitter-scraper'
+      return 'apidojo/tweet-scraper' // Updated ID for Twitter (X) Scraper
     case 'instagram':
-      return 'apify/instagram-scraper'
+      return 'apify/instagram-scraper' // Updated ID for Instagram Scraper
     case 'youtube':
-      return 'apify/youtube-scraper'
+      return 'streamers/youtube-scraper' // Updated ID for YouTube Scraper
     default:
       throw new Error(`Unsupported platform: ${platform}`)
   }
