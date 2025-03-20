@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 /**
  * Simple error page displayed when auth operations fail
  */
@@ -10,12 +12,12 @@ export default function ErrorPage() {
         <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
         <p className="text-gray-700 mb-4">Sorry, something went wrong with your authentication request.</p>
         <p className="text-gray-600 mb-6">Please try again or contact support if the problem persists.</p>
-        <a 
+        <Link 
           href="/login" 
           className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
         >
           Return to Login
-        </a>
+        </Link>
       </div>
     </div>
   )
