@@ -12,30 +12,6 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-indigo-600">Consistency Tracker</h1>
-          </div>
-          <div className="space-x-4">
-            {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-        </nav>
-      </header>
 
       <main className="container mx-auto px-4 py-16 text-center">
         <div className="mx-auto max-w-3xl">
