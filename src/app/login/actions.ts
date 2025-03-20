@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/utils/supabase/server'
-import { createDbClient } from '@/lib/db'
+import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
@@ -56,13 +56,15 @@ export async function signup(formData: FormData) {
     redirect('/error?message=Missing+required+fields')
   }
   
-  // Check if username is already taken
+  // Check if username is already taken with retry logic
   const db = createDbClient()
-  const existingUser = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1)
+  const existingUser = await executeWithRetry(async () => {
+    return db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1)
+  })
   
   if (existingUser.length > 0) {
     redirect('/login?error=username_taken')
@@ -80,7 +82,7 @@ export async function signup(formData: FormData) {
   }
 
   try {
-    // Create user profile in the database with provided information
+    // Create user profile in the database with provided information and retry logic
     const newUser = {
       id: authData.user.id,
       email: authData.user.email || '',
@@ -96,10 +98,12 @@ export async function signup(formData: FormData) {
     }
     
     // Insert the new user into the database
-    await db.insert(users)
-      .values(newUser)
-      .onConflictDoNothing({ target: users.id })
-      .execute()
+    await executeWithRetry(async () => {
+      return db.insert(users)
+        .values(newUser)
+        .onConflictDoNothing({ target: users.id })
+        .execute()
+    })
     
     console.log('Created user profile for:', authData.user.email)
   } catch (dbError) {
