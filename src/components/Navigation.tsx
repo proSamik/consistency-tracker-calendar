@@ -2,21 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
 
 /**
  * Navigation component without auth verification
  */
 export default function Navigation() {
   const pathname = usePathname()
-  const router = useRouter()
-
-  // Handle signout
-  const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/')
-  }
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
