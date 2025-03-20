@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { login, signup } from './actions'
 
 /**
- * Login page component with separate login and signup forms
- * Signup form includes additional profile information fields
+ * Inner login form component that uses search params
  */
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams()
   const [isSignupMode, setIsSignupMode] = useState(false)
   const [usernameError, setUsernameError] = useState<string | null>(null)
@@ -245,5 +244,23 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Login page component with separate login and signup forms
+ * Signup form includes additional profile information fields
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex justify-center items-center py-12">
+        <div className="w-full max-w-md p-8 bg-white shadow-md rounded-lg text-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 } 
