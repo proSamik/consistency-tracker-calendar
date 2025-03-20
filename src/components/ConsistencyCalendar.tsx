@@ -42,6 +42,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
   const [showDetails, setShowDetails] = useState(false)
   const [yearOffset, setYearOffset] = useState(0)
   const [syncing, setSyncing] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Calculate date range using useMemo to prevent recalculations on every render
   const dateRange = useMemo(() => {
@@ -58,7 +59,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       formattedStartDate: format(start, 'yyyy-MM-dd'),
       formattedEndDate: format(end, 'yyyy-MM-dd'),
     }
-  }, [yearOffset]) // Only recalculate when yearOffset changes
+  }, [yearOffset, refreshKey])
 
   // Memoize calendar generation to prevent recalculation on every render
   const { months, weeks } = useMemo(() => {
@@ -183,12 +184,18 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       
       console.log(`Successfully synced ${platform} data`);
       
+      // Clear activities first to force a refresh
+      setActivities([]);
+      
+      // Force refresh by incrementing the refresh key
+      setRefreshKey(prev => prev + 1);
+      
       // Wait a moment to ensure DB updates are complete
       setTimeout(async () => {
         // Refresh activities data
         await refreshActivities();
         setSyncing(false);
-      }, 500);
+      }, 1000); // Increase delay to ensure data is ready
       
     } catch (err: any) {
       console.error(`Error syncing ${platform}:`, err);
@@ -204,8 +211,11 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     try {
       setLoading(true);
       
+      // Force refresh by incrementing the refresh key
+      setRefreshKey(prev => prev + 1);
+      
       const activitiesResponse = await fetch(
-        `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}`
+        `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}&nocache=${Date.now()}`
       );
       
       if (!activitiesResponse.ok) {
