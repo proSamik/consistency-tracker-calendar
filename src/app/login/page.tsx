@@ -5,9 +5,9 @@ import { login, signup } from './actions'
  */
 export default function LoginPage() {
   return (
-    <div className="flex justify-center items-center min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex justify-center items-center">
       <form className="w-full max-w-sm p-8 bg-white shadow-md rounded-lg">
-        <h1 className="text-2xl font-bold mb-6 text-center">Login or Sign Up</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center text-indigo-600">Login or Sign Up</h1>
         
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
@@ -37,7 +37,7 @@ export default function LoginPage() {
         
         <div className="flex items-center justify-between">
           <button 
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none" 
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none" 
             formAction={login}
           >
             Log in
