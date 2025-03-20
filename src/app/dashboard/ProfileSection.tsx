@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 /**
  * ProfileSection component for displaying and editing user profile
  * Supports inline editing with confirm/cancel options
+ * Handles username uniqueness validation
  */
 interface ProfileSectionProps {
   userId: string
@@ -17,6 +18,9 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
   
   // State for edit mode
   const [isEditing, setIsEditing] = useState(false)
+  
+  // Error state
+  const [error, setError] = useState<string | null>(null)
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -34,6 +38,8 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
       ...formData,
       [e.target.name]: e.target.value
     })
+    // Clear error when user starts typing
+    if (error) setError(null)
   }
   
   // Cancel editing and reset form data
@@ -47,11 +53,19 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
       youtubeUsername: userData?.youtube_username || '',
     })
     setIsEditing(false)
+    setError(null)
   }
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+    
+    // Validate username
+    if (!formData.username || formData.username.trim() === '') {
+      setError('Username is required')
+      return
+    }
     
     try {
       const formDataObj = new FormData()
@@ -72,10 +86,12 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
         setIsEditing(false)
         router.refresh() // Refresh the page to show updated data
       } else {
-        console.error('Error updating profile')
+        const data = await response.json()
+        setError(data.error || 'Error updating profile')
       }
     } catch (error) {
       console.error('Error submitting form:', error)
+      setError('An unexpected error occurred')
     }
   }
   
@@ -121,6 +137,12 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
         )}
       </div>
       
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
+      
       <div className="space-y-6">
         {/* Personal Information */}
         <div className="border-b border-gray-200 pb-4">
@@ -143,17 +165,28 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-500">Username</p>
+              <p className="text-sm font-medium text-gray-500">
+                Username
+                {isEditing && <span className="text-red-500 ml-1">*</span>}
+              </p>
               {isEditing ? (
                 <input
                   type="text"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className={`mt-1 block w-full border ${
+                    error && error.includes('Username') ? 'border-red-300' : 'border-gray-300'
+                  } rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                  required
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.username || 'Not set'}</p>
+              )}
+              {isEditing && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Username must be unique and will be used to identify you in the system.
+                </p>
               )}
             </div>
           </div>
