@@ -14,11 +14,11 @@ import { eq } from 'drizzle-orm'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  context: { params: { username: string } }
 ) {
   try {
-    const username = context.params.username
+    // Need to await params before accessing its properties in Next.js 15
+    const { username } = await context.params
     
     // Create database client
     const db = createDbClient()
