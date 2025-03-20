@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { createDbClient } from '@/lib/db'
+import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import ProfileSection from './ProfileSection'
+import ProfileWrapper from './ProfileWrapper'
 
 /**
  * Dashboard page that is protected
@@ -27,40 +27,44 @@ export default async function DashboardPage() {
   // Fetch user data from users table for the authenticated user using drizzle
   let userData = null
   try {
-    const userResults = await db.select()
-      .from(users)
-      .where(eq(users.id, data.user.id))
-      .limit(1)
-    
-    if (userResults.length > 0) {
-      userData = userResults[0]
-      console.log('Found existing user data:', userData)
-    } else {
-      // No user record found, create one
-      console.log('No user found, creating new user record')
-      const newUser = {
-        id: data.user.id,
-        email: data.user.email || '',
-        created_at: new Date(),
-        updated_at: new Date(),
-        username: null,
-        full_name: null,
-        avatar_url: null,
-        github_username: null,
-        twitter_username: null,
-        instagram_username: null,
-        youtube_username: null,
-      }
+    // Use executeWithRetry for database operations to handle connection issues
+    userData = await executeWithRetry(async () => {
+      const userResults = await db.select()
+        .from(users)
+        .where(eq(users.id, data.user.id))
+        .limit(1)
       
-      const insertResult = await db.insert(users)
-        .values(newUser)
-        .returning()
-      
-      if (insertResult.length > 0) {
-        userData = insertResult[0]
-        console.log('Created new user data:', userData)
+      if (userResults.length > 0) {
+        console.log('Found existing user data:', userResults[0])
+        return userResults[0]
+      } else {
+        // No user record found, create one
+        console.log('No user found, creating new user record')
+        const newUser = {
+          id: data.user.id,
+          email: data.user.email || '',
+          created_at: new Date(),
+          updated_at: new Date(),
+          username: null,
+          full_name: null,
+          avatar_url: null,
+          github_username: null,
+          twitter_username: null,
+          instagram_username: null,
+          youtube_username: null,
+        }
+        
+        const insertResult = await db.insert(users)
+          .values(newUser)
+          .returning()
+        
+        if (insertResult.length > 0) {
+          console.log('Created new user data:', insertResult[0])
+          return insertResult[0]
+        }
+        return null
       }
-    }
+    })
   } catch (dbError) {
     console.error('Error accessing user data:', dbError)
   }
@@ -88,7 +92,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Profile Section - Combined display and edit */}
-        <ProfileSection 
+        <ProfileWrapper 
           userId={data.user.id}
           userData={userData}
         />
