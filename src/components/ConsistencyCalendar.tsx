@@ -101,7 +101,8 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       if (!username) return;
       
       // Don't reload if already loading - prevents multiple simultaneous requests
-      if (loading && controller) return;
+      // But make sure we don't skip the initial load
+      if (loading && controller && activities.length > 0) return;
       
       setLoading(true);
       setError(null);
@@ -109,8 +110,10 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       try {
         controller = new AbortController();
         
+        console.log(`Fetching activities for ${username} from ${dateRange.formattedStartDate} to ${dateRange.formattedEndDate}`);
+        
         const response = await fetch(
-          `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}`,
+          `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}&_=${Date.now()}`,
           { signal: controller.signal }
         );
         
@@ -128,6 +131,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
         }
         
         const data = await response.json();
+        console.log('Loaded activities:', data);
         setActivities(data.activities || []);
       } catch (err: any) {
         // Don't set error state if the request was aborted
@@ -146,6 +150,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       }
     }
     
+    // Call fetchActivities immediately
     fetchActivities();
     
     return () => {
@@ -154,7 +159,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
         controller.abort();
       }
     };
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, activities.length]);
 
   // Handle syncing activities for a specific platform with useCallback
   const syncPlatform = useCallback(async (platform: string) => {
