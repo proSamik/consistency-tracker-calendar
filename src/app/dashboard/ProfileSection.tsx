@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 /**
  * ProfileSection component for displaying and editing user profile
@@ -12,6 +13,8 @@ interface ProfileSectionProps {
 }
 
 export default function ProfileSection({ userId, userData }: ProfileSectionProps) {
+  const router = useRouter()
+  
   // State for edit mode
   const [isEditing, setIsEditing] = useState(false)
   
@@ -46,6 +49,36 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
     setIsEditing(false)
   }
   
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    try {
+      const formDataObj = new FormData()
+      formDataObj.append('id', userId)
+      formDataObj.append('fullName', formData.fullName)
+      formDataObj.append('username', formData.username)
+      formDataObj.append('github_username', formData.githubUsername)
+      formDataObj.append('twitter_username', formData.twitterUsername)
+      formDataObj.append('instagram_username', formData.instagramUsername)
+      formDataObj.append('youtube_username', formData.youtubeUsername)
+      
+      const response = await fetch('/dashboard/update-profile', {
+        method: 'POST',
+        body: formDataObj,
+      })
+      
+      if (response.ok) {
+        setIsEditing(false)
+        router.refresh() // Refresh the page to show updated data
+      } else {
+        console.error('Error updating profile')
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error)
+    }
+  }
+  
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex justify-between items-center mb-6">
@@ -74,26 +107,16 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
               Cancel
             </button>
             
-            <form action="/dashboard/update-profile" method="post">
-              <input type="hidden" name="id" value={userId} />
-              <input type="hidden" name="fullName" value={formData.fullName} />
-              <input type="hidden" name="username" value={formData.username} />
-              <input type="hidden" name="github_username" value={formData.githubUsername} />
-              <input type="hidden" name="twitter_username" value={formData.twitterUsername} />
-              <input type="hidden" name="instagram_username" value={formData.instagramUsername} />
-              <input type="hidden" name="youtube_username" value={formData.youtubeUsername} />
-              
-              <button
-                type="submit"
-                onClick={() => setIsEditing(false)}
-                className="bg-green-50 text-green-600 px-4 py-2 rounded-md font-medium hover:bg-green-100 transition-colors flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Save
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="bg-green-50 text-green-600 px-4 py-2 rounded-md font-medium hover:bg-green-100 transition-colors flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Save
+            </button>
           </div>
         )}
       </div>
@@ -112,7 +135,7 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.full_name || 'Not set'}</p>
@@ -127,7 +150,7 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.username || 'Not set'}</p>
@@ -149,7 +172,7 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
                   name="githubUsername"
                   value={formData.githubUsername}
                   onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.github_username || 'Not set'}</p>
@@ -164,7 +187,7 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
                   name="twitterUsername"
                   value={formData.twitterUsername}
                   onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.twitter_username || 'Not set'}</p>
@@ -179,7 +202,7 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
                   name="instagramUsername"
                   value={formData.instagramUsername}
                   onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.instagram_username || 'Not set'}</p>
@@ -194,7 +217,7 @@ export default function ProfileSection({ userId, userData }: ProfileSectionProps
                   name="youtubeUsername"
                   value={formData.youtubeUsername}
                   onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               ) : (
                 <p className="mt-1 text-gray-900">{userData?.youtube_username || 'Not set'}</p>
