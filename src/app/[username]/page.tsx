@@ -1,67 +1,83 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createDbClient, executeWithRetry } from '@/lib/db'
-import { users } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
 import ConsistencyCalendar from '@/components/ConsistencyCalendar'
 
-interface ProfilePageProps {
-  params: {
-    username: string
-  }
-}
-
-/**
- * Generate metadata for the profile page
- */
-export async function generateMetadata({ params }: ProfilePageProps) {
-  const { username } = params
-  
-  // Get user data
-  const db = createDbClient()
-  const userData = await executeWithRetry(async () => {
-    const userResults = await db.select()
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1)
-    
-    return userResults.length > 0 ? userResults[0] : null
-  })
-  
-  if (!userData) {
-    return {
-      title: 'User Not Found',
-      description: 'The requested user profile could not be found.'
-    }
-  }
-  
-  return {
-    title: `${userData.full_name || username}'s Profile`,
-    description: `View ${userData.full_name || username}'s activity calendar and social media consistency.`
-  }
+interface ProfileData {
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+  created_at: string
+  github_username: string | null
+  twitter_username: string | null
+  instagram_username: string | null
+  youtube_username: string | null
 }
 
 /**
  * Public profile page for viewing a user's consistency calendar
  * Available to anyone, no authentication required
+ * Uses API routes to fetch data rather than direct database access
  */
-export default async function ProfilePage({ params }: ProfilePageProps) {
+export default function ProfilePage({ params }: { params: { username: string } }) {
   const { username } = params
+  const [userData, setUserData] = useState<ProfileData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
-  // Get user data
-  const db = createDbClient()
-  const userData = await executeWithRetry(async () => {
-    const userResults = await db.select()
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1)
+  // Fetch user profile data from API
+  useEffect(() => {
+    async function fetchUserProfile() {
+      try {
+        setLoading(true)
+        
+        const response = await fetch(`/api/profile?username=${username}`)
+        
+        if (response.status === 404) {
+          notFound()
+        }
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user profile')
+        }
+        
+        const data = await response.json()
+        setUserData(data.profile)
+      } catch (err) {
+        console.error('Error fetching user profile:', err)
+        setError('Failed to load user profile')
+      } finally {
+        setLoading(false)
+      }
+    }
     
-    return userResults.length > 0 ? userResults[0] : null
-  })
+    fetchUserProfile()
+  }, [username])
   
-  // Return 404 if user not found
-  if (!userData) {
-    notFound()
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    )
+  }
+  
+  // Show error state
+  if (error || !userData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <h1 className="text-2xl text-red-600 mb-4">Error</h1>
+          <p className="text-gray-700">{error || 'Failed to load user profile'}</p>
+          <Link href="/" className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+            Go Home
+          </Link>
+        </div>
+      </div>
+    )
   }
   
   // Format joining date
@@ -191,12 +207,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         {/* Consistency Calendar */}
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-xl font-semibold text-indigo-600 mb-6">Activity Calendar</h2>
-          <ConsistencyCalendar username={username} showSync={false} />
+          <ConsistencyCalendar username={username} showSync={false} isPublicView={true} />
           
           <div className="mt-4 text-sm text-gray-500">
             <p>
               This calendar shows {userData.full_name || username}'s activity across different platforms.
               Each cell represents a day, and the color intensity shows the level of activity.
+              Private activities are not displayed.
             </p>
           </div>
         </div>
