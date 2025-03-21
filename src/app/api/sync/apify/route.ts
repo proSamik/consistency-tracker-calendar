@@ -331,7 +331,7 @@ async function fetchPlatformData(
       "isUserReelFeedURL": false,
       "isUserTaggedFeedURL": false,
       "onlyPostsNewerThan": formattedDate, // Use the previous day to catch all posts
-      "resultsLimit": 20, // Increased limit to ensure we get all posts
+      "resultsLimit": 100, // Increased limit to ensure we get all posts
       "resultsType": "posts",
       "searchLimit": 1,
       "searchType": "hashtag"
