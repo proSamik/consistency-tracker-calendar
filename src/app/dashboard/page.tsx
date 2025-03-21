@@ -177,7 +177,7 @@ export default async function DashboardPage() {
 
             <div className="mt-6 flex items-center">
               <Link 
-                href={`/${userData.username}/profile`} 
+                href={`/${userData.username}`} 
                 className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
               >
                 <span>View public profile</span>
