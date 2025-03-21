@@ -85,7 +85,15 @@ export async function POST(request: NextRequest) {
     const timezoneOffset = request.headers.get('x-timezone-offset') || '0';
     const userTimezoneOffsetMinutes = parseInt(timezoneOffset, 10) || 0;
     
-    console.log(`User timezone offset: ${userTimezoneOffsetMinutes} minutes`);
+    console.log(`User timezone offset: ${userTimezoneOffsetMinutes} minutes from UTC`);
+    
+    // For context: negative offset means west of UTC (e.g., -330 for IST which is UTC+5:30)
+    // browser's getTimezoneOffset() returns the opposite of what we might expect
+    const timezoneDesc = userTimezoneOffsetMinutes < 0 
+      ? `UTC+${Math.abs(userTimezoneOffsetMinutes/60)}`  // East of UTC
+      : `UTC-${userTimezoneOffsetMinutes/60}`;           // West of UTC
+      
+    console.log(`User timezone: ${timezoneDesc}`);
     
     if (!platform || !isPlatform(platform)) {
       return NextResponse.json(
@@ -98,15 +106,24 @@ export async function POST(request: NextRequest) {
     let targetDate: Date;
     if (date) {
       targetDate = parseISO(date);
+      console.log(`Using provided date: ${date}, parsed as: ${formatDate(targetDate)}`);
     } else {
       // Use current date without adjustment
       targetDate = new Date();
+      console.log(`Using current date: ${formatDate(targetDate)}`);
     }
     
-    // For Twitter, we need a special handling since we'll adjust in fetchPlatformData
-    // For other platforms, use the date as is
+    // Format the target date for display and database storage
     const formattedDate = formatDate(targetDate);
-    console.log(`Target date: ${formattedDate} with timezone offset: ${userTimezoneOffsetMinutes} minutes`);
+    console.log(`Target date for API and database: ${formattedDate}`);
+    
+    // For Instagram debugging, show UTC time as well
+    if (platform === 'instagram') {
+      // Calculate what this date would be in UTC (for debugging Instagram API expectations)
+      const utcDate = new Date(targetDate.getTime() + (userTimezoneOffsetMinutes * 60000));
+      console.log(`Instagram: This date in UTC is: ${formatDate(utcDate)} (${utcDate.toISOString()})`);
+      console.log(`Instagram: When API returns UTC timestamp like 2025-03-21T19:37:41.000Z, it will be converted to local: ${formatDate(targetDate)}`);
+    }
     
     // Get user profile data with social media usernames
     const db = createDbClient()
@@ -269,18 +286,27 @@ async function fetchPlatformData(
   // Store the original user's local date for comparison later
   const userLocalDateString = formatDate(date);
   
-  // For Twitter, we need to adjust the date for UTC (since Twitter API works with UTC dates)
+  // For API requests, we need to adjust dates based on the platform's expectations
   let formattedDate: string;
+  
   if (platform === 'twitter') {
-    // Create a UTC date by adjusting for timezone - this is only for the API request
+    // Twitter API works with UTC dates, so adjust the user's local date to UTC
     const utcDate = new Date(date.getTime() + (userTimezoneOffsetMinutes * 60000));
     formattedDate = formatDate(utcDate);
-    console.log(`Using UTC-adjusted date for Twitter API: ${formattedDate} (original local: ${userLocalDateString})`);
+    console.log(`Twitter: Using UTC-adjusted date for API: ${formattedDate} (original local: ${userLocalDateString})`);
+  } else if (platform === 'instagram') {
+    // Instagram API uses UTC dates but we'll filter locally after fetching
+    // For Instagram, we need to check a wider date range to account for timezone differences
+    // So we use the previous day as the cutoff to ensure we capture posts in all timezones
+    const instagramDate = subDays(date, 1);
+    formattedDate = formatDate(instagramDate);
+    console.log(`Instagram: Using previous day as cutoff for API: ${formattedDate}, will filter to ${userLocalDateString} after fetching`);
   } else {
+    // Default: use the local date as is
     formattedDate = formatDate(date);
   }
   
-  console.log(`Starting Apify actor run for ${platform}, actor: ${actorId}, username: ${username}, date: ${formattedDate}`)
+  console.log(`Starting Apify actor run for ${platform}, actor: ${actorId}, username: ${username}, API date parameter: ${formattedDate}`)
   
   let input = {}
   
@@ -295,8 +321,7 @@ async function fetchPlatformData(
       since_date: formattedDate,
     }
   } else if (platform === 'instagram') {
-    // For Instagram, handle the date in the filtering parameters
-    // Instagram uses UTC dates in its API
+    // For Instagram, we use a wider date range and filter locally after
     input = {
       "addParentData": false,
       "directUrls": [
@@ -305,8 +330,8 @@ async function fetchPlatformData(
       "enhanceUserSearchWithFacebookPage": false,
       "isUserReelFeedURL": false,
       "isUserTaggedFeedURL": false,
-      "onlyPostsNewerThan": formattedDate,
-      "resultsLimit": 10,
+      "onlyPostsNewerThan": formattedDate, // Use the previous day to catch all posts
+      "resultsLimit": 20, // Increased limit to ensure we get all posts
       "resultsType": "posts",
       "searchLimit": 1,
       "searchType": "hashtag"
@@ -463,7 +488,7 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
       
       return false;
     } else if (platform === 'instagram') {
-      // Instagram can return timestamps in many formats
+      // Instagram returns timestamps in ISO format with 'Z' indicating UTC time (e.g., "2025-03-21T19:37:41.000Z")
       itemDate = item.timestamp || item.taken_at || item.taken_at_timestamp || 
                 (item.node && item.node.taken_at_timestamp ? new Date(item.node.taken_at_timestamp * 1000).toISOString() : null)
       
@@ -474,16 +499,21 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
       
       if (!itemDate) return false;
       
-      // Convert to user's local time for comparison
+      // Parse the UTC timestamp
       const rawItemDate = new Date(itemDate);
+      
+      // Convert UTC timestamp to user's local timezone by subtracting the timezone offset
+      // userTimezoneOffsetMinutes is the offset in minutes, positive for east of UTC
       const localItemDate = new Date(rawItemDate.getTime() - (userTimezoneOffsetMinutes * 60000));
       const itemDateFormatted = formatDate(localItemDate);
       
-      console.log(`Instagram date: ${itemDate}, raw UTC: ${formatDate(rawItemDate)}, local: ${itemDateFormatted}, target: ${date}`);
+      console.log(`Instagram item: ${item.caption ? item.caption.substring(0, 30) + '...' : 'No caption'}`);
+      console.log(`Instagram date: ${itemDate}, raw UTC: ${formatDate(rawItemDate)}, adjusted local: ${itemDateFormatted}, target: ${date}`);
       
       const result = itemDateFormatted === date;
       if (result) {
-        console.log(`Found matching Instagram date: ${itemDateFormatted} === ${date}`);
+        console.log(`Found matching Instagram post for date: ${itemDateFormatted} === ${date}`);
+        console.log(`Post URL: ${item.url}`);
       }
       return result;
     }
@@ -520,11 +550,21 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
         // Handle potential nested structures (Instagram API has changed formats several times)
         const node = item.node || item
         
+        // Get the original UTC timestamp
+        let timestamp = node.timestamp || 
+                     (node.taken_at_timestamp ? new Date(node.taken_at_timestamp * 1000).toISOString() : null) || 
+                     new Date().toISOString();
+        
+        // Store both the original UTC timestamp and the local timestamp
+        const utcDate = new Date(timestamp);
+        const localDate = new Date(utcDate.getTime() - (userTimezoneOffsetMinutes * 60000));
+        
         return {
           id: node.id || node.pk || '',
           type: node.type || node.media_type || node.__typename || 'post',
           url: node.url || node.permalink || `https://www.instagram.com/p/${node.shortcode || node.code}/` || '',
-          timestamp: node.timestamp || (node.taken_at_timestamp ? new Date(node.taken_at_timestamp * 1000).toISOString() : null) || new Date().toISOString(),
+          timestamp: timestamp,
+          localTimestamp: localDate.toISOString(), // Add local timestamp for reference
           caption: node.caption || node.edge_media_to_caption?.edges[0]?.node?.text || '',
           likes: node.likesCount || node.like_count || node.edge_media_preview_like?.count || 0,
           comments: node.commentsCount || node.comment_count || node.edge_media_to_comment?.count || 0
