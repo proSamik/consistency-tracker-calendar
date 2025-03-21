@@ -173,6 +173,8 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
     
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
+      // Get user's timezone offset in minutes
+      const timezoneOffsetMinutes = new Date().getTimezoneOffset();
       
       // Use different endpoints based on platform
       let endpoint = '/api/sync/apify';
@@ -187,10 +189,13 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
         body.platform = syncPlatform;
       }
       
+      console.log(`Syncing ${syncPlatform} with timezone offset: ${timezoneOffsetMinutes} minutes`);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-timezone-offset': timezoneOffsetMinutes.toString(),
         },
         body: JSON.stringify(body),
       });
@@ -284,6 +289,13 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
       return 'bg-emerald-500'
     }
   }
+
+  // Function to convert a date to user's local timezone
+  const toLocalDate = useCallback((dateString: string) => {
+    const date = parseISO(dateString);
+    // Already in local timezone since parseISO uses local timezone
+    return date;
+  }, []);
 
   // Filter and process activities based on platform
   const filteredActivities = useMemo(() => {
@@ -447,9 +459,11 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
                 <div key={weekIndex} className="flex flex-col gap-1">
                   {week.map((day, dayIndex) => {
                     // Find activity for this day if any
-                    const activity = filteredActivities.find(a => 
-                      isSameDay(parseISO(a.date), day)
-                    )
+                    const activity = filteredActivities.find(a => {
+                      // Convert activity date to local timezone for comparison
+                      const activityDate = toLocalDate(a.date);
+                      return isSameDay(activityDate, day);
+                    });
                     
                     // Skip days outside our target year
                     if (day.getFullYear() !== dateRange.startDate.getFullYear()) {
