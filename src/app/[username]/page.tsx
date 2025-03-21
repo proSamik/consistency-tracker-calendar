@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ConsistencyCalendar from '@/components/ConsistencyCalendar'
+import React from 'react'
 
 interface ProfileData {
   username: string
@@ -16,13 +17,19 @@ interface ProfileData {
   youtube_username: string | null
 }
 
+interface PageParams {
+  username: string
+}
+
 /**
  * Public profile page for viewing a user's consistency calendar
  * Available to anyone, no authentication required
  * Uses API routes to fetch data rather than direct database access
  */
-export default function ProfilePage({ params }: { params: { username: string } }) {
-  const { username } = params
+export default function ProfilePage({ params }: { params: Promise<PageParams> }) {
+  // Unwrap params using React.use()
+  const unwrappedParams = React.use(params);
+  const { username } = unwrappedParams;
   const [userData, setUserData] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
