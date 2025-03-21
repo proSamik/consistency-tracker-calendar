@@ -111,6 +111,16 @@ When you accidentally delete your migrations directory but the database schema s
 3. Run `npm run db:generate` to keep your schema in sync going forward.
 You can now continue development normally, as the migration state has been properly restored.
 
+## Automated Background Sync
+
+The application includes automated background synchronization that runs every 6 hours to keep user data up-to-date across all platforms:
+
+- GitHub activity
+- Twitter posts
+- Instagram posts
+- YouTube uploads
+
+This is configured using Vercel Cron Jobs and runs completely server-side without requiring user intervention. For more details, see the [Cron Jobs documentation](docs/cron-jobs.md).
 
 ## Contributing
 
