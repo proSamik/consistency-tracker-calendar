@@ -3,7 +3,7 @@ import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users, activities } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { getLoggedInUser } from '@/lib/auth'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, subDays } from 'date-fns'
 
 /**
  * Format a date to YYYY-MM-DD
@@ -12,6 +12,30 @@ import { format, parseISO } from 'date-fns'
  */
 function formatDate(date: Date): string {
   return format(date, 'yyyy-MM-dd')
+}
+
+/**
+ * Parse date from Twitter's format and adjust to user timezone
+ * @param twitterDateString Date string in Twitter format
+ * @param userTimezoneOffsetMinutes User's timezone offset in minutes
+ * @returns Date object adjusted to user timezone
+ */
+function parseTwitterDate(twitterDateString: string, userTimezoneOffsetMinutes: number = 0): Date {
+  // Twitter date format: "Fri Mar 21 20:33:52 +0000 2025"
+  const date = new Date(twitterDateString);
+  
+  // Twitter dates are in UTC (+0000), so we need to adjust them to the user's timezone
+  // getTimezoneOffset() returns the difference in minutes between UTC and local time
+  // We need to apply the user's offset to get the correct local date
+  
+  // Only adjust if we have a valid offset (since getTimezoneOffset is negative when east of UTC)
+  if (userTimezoneOffsetMinutes !== 0) {
+    // Create a date in the user's timezone by considering their offset
+    const userLocalDate = new Date(date.getTime() - (userTimezoneOffsetMinutes * 60000));
+    return userLocalDate;
+  }
+  
+  return date;
 }
 
 // Type guard for platform string
@@ -39,6 +63,12 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json()
     const { date, platform } = requestData
     
+    // Get user's timezone offset from the request headers
+    const timezoneOffset = request.headers.get('x-timezone-offset') || '0';
+    const userTimezoneOffsetMinutes = parseInt(timezoneOffset, 10) || 0;
+    
+    console.log(`User timezone offset: ${userTimezoneOffsetMinutes} minutes`);
+    
     if (!platform || !isPlatform(platform)) {
       return NextResponse.json(
         { error: 'Invalid or missing platform. Must be twitter or instagram' },
@@ -46,9 +76,19 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Parse date or use current date if not provided
-    const targetDate = date ? parseISO(date) : new Date()
-    const formattedDate = formatDate(targetDate)
+    // Parse date or use current date if not provided, considering timezone
+    let targetDate: Date;
+    if (date) {
+      targetDate = parseISO(date);
+    } else {
+      // Use current date without adjustment
+      targetDate = new Date();
+    }
+    
+    // For Twitter, we need a special handling since we'll adjust in fetchPlatformData
+    // For other platforms, use the date as is
+    const formattedDate = formatDate(targetDate);
+    console.log(`Target date: ${formattedDate} with timezone offset: ${userTimezoneOffsetMinutes} minutes`);
     
     // Get user profile data with social media usernames
     const db = createDbClient()
@@ -98,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call appropriate Apify actor based on platform
-    const platformData = await fetchPlatformData(platform, platformUsername, targetDate, apifyToken)
+    const platformData = await fetchPlatformData(platform, platformUsername, targetDate, apifyToken, userTimezoneOffsetMinutes)
     
     // Log Instagram actor output to terminal
     if (platform === 'instagram') {
@@ -195,17 +235,32 @@ export async function POST(request: NextRequest) {
  * @param username The username to fetch data for
  * @param date The target date
  * @param apifyToken Apify API token
+ * @param userTimezoneOffsetMinutes User's timezone offset in minutes
  * @returns Platform-specific data
  */
 async function fetchPlatformData(
   platform: string, 
   username: string, 
   date: Date,
-  apifyToken: string
+  apifyToken: string,
+  userTimezoneOffsetMinutes: number = 0
 ) {
   // Get the appropriate actor ID for the platform
   const actorId = getActorId(platform)
-  const formattedDate = formatDate(date)
+  
+  // Store the original user's local date for comparison later
+  const userLocalDateString = formatDate(date);
+  
+  // For Twitter, we need to adjust the date for UTC (since Twitter API works with UTC dates)
+  let formattedDate: string;
+  if (platform === 'twitter') {
+    // Create a UTC date by adjusting for timezone - this is only for the API request
+    const utcDate = new Date(date.getTime() + (userTimezoneOffsetMinutes * 60000));
+    formattedDate = formatDate(utcDate);
+    console.log(`Using UTC-adjusted date for Twitter API: ${formattedDate} (original local: ${userLocalDateString})`);
+  } else {
+    formattedDate = formatDate(date);
+  }
   
   console.log(`Starting Apify actor run for ${platform}, actor: ${actorId}, username: ${username}, date: ${formattedDate}`)
   
@@ -222,20 +277,21 @@ async function fetchPlatformData(
       since_date: formattedDate,
     }
   } else if (platform === 'instagram') {
-    // For Instagram, we create a user-specific configuration
+    // For Instagram, handle the date in the filtering parameters
+    // Instagram uses UTC dates in its API
     input = {
-    "addParentData": false,
-    "directUrls": [
-      `https://www.instagram.com/${username}/`
-    ],
-    "enhanceUserSearchWithFacebookPage": false,
-    "isUserReelFeedURL": true,
-    "isUserTaggedFeedURL": false,
-    "onlyPostsNewerThan": formattedDate,
-    "resultsLimit": 10,
-    "resultsType": "posts",
-    "searchLimit": 1,
-    "searchType": "hashtag"
+      "addParentData": false,
+      "directUrls": [
+        `https://www.instagram.com/${username}/`
+      ],
+      "enhanceUserSearchWithFacebookPage": false,
+      "isUserReelFeedURL": true,
+      "isUserTaggedFeedURL": false,
+      "onlyPostsNewerThan": formattedDate,
+      "resultsLimit": 10,
+      "resultsType": "posts",
+      "searchLimit": 1,
+      "searchType": "hashtag"
     }
   }
   
@@ -320,8 +376,8 @@ async function fetchPlatformData(
         console.log(`Retrieved ${items.length} items from dataset`)
         console.log('Instagram Actor Output:', items);
         
-        // Format data based on platform
-        return formatPlatformData(platform, items, formattedDate)
+        // Use the user's local date for filtering, not the UTC-adjusted date
+        return formatPlatformData(platform, items, userLocalDateString, userTimezoneOffsetMinutes)
       }
       
       if (['FAILED', 'ABORTED', 'TIMED_OUT'].includes(statusData.data.status)) {
@@ -346,10 +402,11 @@ async function fetchPlatformData(
  * @param platform The platform name
  * @param items Items from Apify
  * @param date Target date string
+ * @param userTimezoneOffsetMinutes User's timezone offset in minutes
  * @returns Formatted platform data
  */
-function formatPlatformData(platform: string, items: any[], date: string) {
-  console.log(`Formatting data for ${platform} with ${items.length} items, target date: ${date}`)
+function formatPlatformData(platform: string, items: any[], date: string, userTimezoneOffsetMinutes: number = 0) {
+  console.log(`Formatting data for ${platform} with ${items.length} items, target date: ${date} (user's local date)`)
   
   // Filter items by date if needed
   const filteredItems = items.filter(item => {
@@ -357,7 +414,36 @@ function formatPlatformData(platform: string, items: any[], date: string) {
     let itemDate = null
     
     if (platform === 'twitter') {
-      itemDate = item.date || item.postedAt || item.createdAtFormatted || item.timestamp || item.createdAt
+      // Extract the date from the Twitter response
+      if (item.created_at) {
+        // Handle Twitter date format: "Fri Mar 21 20:33:52 +0000 2025"
+        // For Twitter comparison, we need to use the original target date, not the UTC-adjusted one
+        // that was sent to the API, as we're now working with the actual tweet dates
+        const rawItemDate = new Date(item.created_at);
+        const localItemDate = new Date(rawItemDate.getTime() - (userTimezoneOffsetMinutes * 60000));
+        
+        itemDate = localItemDate;
+        
+        // Additional logging for debugging Twitter date handling
+        console.log(`Twitter date: ${item.created_at}, raw UTC: ${formatDate(rawItemDate)}, local: ${formatDate(localItemDate)}, target: ${date}`);
+      } else {
+        itemDate = item.date || item.postedAt || item.createdAtFormatted || item.timestamp || item.createdAt;
+      }
+      
+      // Get only the date part in user's local timezone
+      if (itemDate) {
+        const itemDateString = formatDate(new Date(itemDate));
+        const result = itemDateString === date;
+        
+        if (result) {
+          console.log(`Found matching Twitter date: ${itemDateString} === ${date}`);
+          console.log(`Tweet text: ${item.full_text || item.text}`);
+        }
+        
+        return result;
+      }
+      
+      return false;
     } else if (platform === 'instagram') {
       // Instagram can return timestamps in many formats
       itemDate = item.timestamp || item.taken_at || item.taken_at_timestamp || 
@@ -367,25 +453,24 @@ function formatPlatformData(platform: string, items: any[], date: string) {
       if (typeof itemDate === 'number') {
         itemDate = new Date(itemDate * 1000).toISOString()
       }
+      
+      if (!itemDate) return false;
+      
+      // Convert to user's local time for comparison
+      const rawItemDate = new Date(itemDate);
+      const localItemDate = new Date(rawItemDate.getTime() - (userTimezoneOffsetMinutes * 60000));
+      const itemDateFormatted = formatDate(localItemDate);
+      
+      console.log(`Instagram date: ${itemDate}, raw UTC: ${formatDate(rawItemDate)}, local: ${itemDateFormatted}, target: ${date}`);
+      
+      const result = itemDateFormatted === date;
+      if (result) {
+        console.log(`Found matching Instagram date: ${itemDateFormatted} === ${date}`);
+      }
+      return result;
     }
     
-    if (!itemDate) return false
-    
-    // Convert to YYYY-MM-DD format for comparison
-    let itemDateFormatted = ''
-    if (typeof itemDate === 'string') {
-      itemDateFormatted = itemDate.substring(0, 10)
-    } else if (itemDate instanceof Date) {
-      itemDateFormatted = formatDate(itemDate)
-    } else {
-      return false
-    }
-    
-    const result = itemDateFormatted === date
-    if (result) {
-      console.log(`Found matching date: ${itemDateFormatted} === ${date}`)
-    }
-    return result
+    return false;
   })
   
   console.log(`Filtered to ${filteredItems.length} items with date: ${date}`)
@@ -393,12 +478,13 @@ function formatPlatformData(platform: string, items: any[], date: string) {
   switch (platform) {
     case 'twitter': {
       const tweets = filteredItems.map(item => ({
-        id: item.id,
-        text: item.text || item.fullText,
-        url: item.url,
-        timestamp: item.timestamp || item.createdAt,
-        likes: item.likeCount,
-        retweets: item.retweetCount
+        id: item.id_str || item.id,
+        text: item.full_text || item.text || '',
+        url: item.url || `https://twitter.com/i/status/${item.id_str || item.id}`,
+        timestamp: item.created_at || item.timestamp || item.createdAt,
+        likes: item.favorite_count || item.likeCount || 0,
+        retweets: item.retweet_count || item.retweetCount || 0,
+        views: item.views_count || 0
       }))
       
       return {
@@ -463,7 +549,7 @@ function getPlatformItemCount(data: any): number {
 function getActorId(platform: string): string {
   switch (platform) {
     case 'twitter':
-      return 'apidojo~tweet-scraper' // Updated ID for Twitter (X) Scraper
+      return 'gentle_cloud~twitter-tweets-scraper' // Updated ID for Twitter (X) Scraper
     case 'instagram':
       return 'apify~instagram-scraper' // Updated ID for Instagram Scraper
     default:
