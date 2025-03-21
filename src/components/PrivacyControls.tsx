@@ -21,16 +21,27 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
     youtube_private: false,
     instagram_private: false
   })
+  
+  // Log the username received for debugging
+  useEffect(() => {
+    console.log(`PrivacyControls component initialized with username: ${username}`);
+  }, [username]);
 
   // Fetch current privacy settings on component mount
   useEffect(() => {
     async function fetchPrivacySettings() {
-      if (!username) return
+      if (!username) {
+        console.error('No username provided to PrivacyControls component');
+        setError('No username available');
+        setLoading(false);
+        return;
+      }
       
       setLoading(true)
       setError(null)
       
       try {
+        console.log(`Fetching privacy settings for: ${username}`);
         const response = await fetch(`/api/privacy?username=${username}`)
         
         if (!response.ok) {
@@ -45,6 +56,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
         }
         
         const data = await response.json()
+        console.log('Received privacy settings:', data);
         setPrivacySettings(data.privacy)
       } catch (err: any) {
         console.error('Error fetching privacy settings:', err)
@@ -61,10 +73,11 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
    * Toggle privacy setting for a specific platform
    */
   async function togglePrivacy(platformName: string) {
-    if (!username) return
-    
-    // Don't allow toggling if all platforms view is selected
-    if (platform !== 'all' && platform !== platformName) return
+    if (!username) {
+      console.error('No username available for privacy toggle');
+      setError('No username available');
+      return;
+    }
     
     const currentValue = privacySettings[`${platformName}_private` as keyof typeof privacySettings]
     
@@ -75,17 +88,25 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
     }))
     
     try {
+      console.log(`Toggling privacy for ${platformName} to ${!currentValue} for user ${username}`);
+      
+      const payload = {
+        username,
+        platform: platformName,
+        isPrivate: !currentValue
+      };
+      
+      console.log('Sending payload:', payload);
+      
       const response = await fetch('/api/privacy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          username,
-          platform: platformName,
-          isPrivate: !currentValue
-        })
+        body: JSON.stringify(payload)
       })
+      
+      const responseData = await response.json();
       
       if (!response.ok) {
         // Revert optimistic update on error
@@ -94,17 +115,17 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
           [`${platformName}_private`]: currentValue
         }))
         
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update privacy setting')
+        console.error('Privacy update failed:', responseData);
+        throw new Error(responseData.error || responseData.detail || 'Failed to update privacy setting')
       }
       
-      console.log(`${platformName} privacy setting updated`)
+      console.log(`${platformName} privacy setting updated successfully:`, responseData);
     } catch (err: any) {
       console.error('Error updating privacy setting:', err)
-      setError(`Failed to update ${platformName} privacy setting`)
+      setError(`Failed to update ${platformName} privacy setting: ${err.message}`)
       
-      // Error message will auto-clear after 3 seconds
-      setTimeout(() => setError(null), 3000)
+      // Error message will auto-clear after 5 seconds
+      setTimeout(() => setError(null), 5000)
     }
   }
 
@@ -124,6 +145,44 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
     )
   }
 
+  // If viewing a specific platform, only show that platform's toggle
+  if (platform !== 'all') {
+    return (
+      <div className="flex flex-col space-y-2 mb-4">
+        <h3 className="text-sm font-medium text-gray-300">Privacy Setting</h3>
+        
+        {error && (
+          <div className="bg-red-900 text-white p-2 mb-2 rounded text-xs">
+            {error}
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between p-2 rounded bg-opacity-30" 
+          style={{
+            backgroundColor: platform === 'github' ? 'rgba(22, 163, 74, 0.3)' : 
+                            platform === 'twitter' ? 'rgba(29, 155, 240, 0.3)' :
+                            platform === 'youtube' ? 'rgba(239, 68, 68, 0.3)' : 
+                            'rgba(219, 39, 119, 0.3)'
+          }}>
+          <div className="text-sm">
+            <span className="font-medium">{platform.charAt(0).toUpperCase() + platform.slice(1)}:</span> {getPrivacyLabel(platform)}
+          </div>
+          <Switch 
+            checked={privacySettings[`${platform}_private` as keyof typeof privacySettings]}
+            onCheckedChange={() => togglePrivacy(platform)}
+            className={
+              platform === 'github' ? 'data-[state=checked]:bg-green-600' : 
+              platform === 'twitter' ? 'data-[state=checked]:bg-blue-600' :
+              platform === 'youtube' ? 'data-[state=checked]:bg-red-600' : 
+              'data-[state=checked]:bg-pink-600'
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // Otherwise show all platform toggles (for "all" view)
   return (
     <div className="flex flex-col space-y-2 mb-4">
       <h3 className="text-sm font-medium text-gray-300">Privacy Settings</h3>
@@ -136,53 +195,49 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
       
       <div className="grid grid-cols-2 gap-4">
         {/* GitHub Privacy Toggle */}
-        <div className={`flex items-center justify-between p-2 rounded ${platform === 'github' || platform === 'all' ? 'bg-green-900/30' : 'bg-gray-800 opacity-50'}`}>
+        <div className="flex items-center justify-between p-2 rounded bg-green-900/30">
           <div className="text-xs">
             <span className="font-medium">GitHub:</span> {getPrivacyLabel('github')}
           </div>
           <Switch 
             checked={privacySettings.github_private}
             onCheckedChange={() => togglePrivacy('github')}
-            disabled={platform !== 'github' && platform !== 'all'}
             className="data-[state=checked]:bg-green-600"
           />
         </div>
         
         {/* Twitter Privacy Toggle */}
-        <div className={`flex items-center justify-between p-2 rounded ${platform === 'twitter' || platform === 'all' ? 'bg-blue-900/30' : 'bg-gray-800 opacity-50'}`}>
+        <div className="flex items-center justify-between p-2 rounded bg-blue-900/30">
           <div className="text-xs">
             <span className="font-medium">Twitter:</span> {getPrivacyLabel('twitter')}
           </div>
           <Switch 
             checked={privacySettings.twitter_private}
             onCheckedChange={() => togglePrivacy('twitter')}
-            disabled={platform !== 'twitter' && platform !== 'all'}
             className="data-[state=checked]:bg-blue-600"
           />
         </div>
         
         {/* YouTube Privacy Toggle */}
-        <div className={`flex items-center justify-between p-2 rounded ${platform === 'youtube' || platform === 'all' ? 'bg-red-900/30' : 'bg-gray-800 opacity-50'}`}>
+        <div className="flex items-center justify-between p-2 rounded bg-red-900/30">
           <div className="text-xs">
             <span className="font-medium">YouTube:</span> {getPrivacyLabel('youtube')}
           </div>
           <Switch 
             checked={privacySettings.youtube_private}
             onCheckedChange={() => togglePrivacy('youtube')}
-            disabled={platform !== 'youtube' && platform !== 'all'}
             className="data-[state=checked]:bg-red-600"
           />
         </div>
         
         {/* Instagram Privacy Toggle */}
-        <div className={`flex items-center justify-between p-2 rounded ${platform === 'instagram' || platform === 'all' ? 'bg-pink-900/30' : 'bg-gray-800 opacity-50'}`}>
+        <div className="flex items-center justify-between p-2 rounded bg-pink-900/30">
           <div className="text-xs">
             <span className="font-medium">Instagram:</span> {getPrivacyLabel('instagram')}
           </div>
           <Switch 
             checked={privacySettings.instagram_private}
             onCheckedChange={() => togglePrivacy('instagram')}
-            disabled={platform !== 'instagram' && platform !== 'all'}
             className="data-[state=checked]:bg-pink-600"
           />
         </div>
