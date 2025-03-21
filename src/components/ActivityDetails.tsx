@@ -141,6 +141,9 @@ export default function ActivityDetails({
     
     setSyncing(true)
     try {
+      // Get user's timezone offset in minutes
+      const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+      
       let endpoint = '/api/sync/apify';
       let body: any = { date };
       
@@ -157,6 +160,7 @@ export default function ActivityDetails({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-timezone-offset': timezoneOffsetMinutes.toString(),
         },
         body: JSON.stringify(body),
       });
