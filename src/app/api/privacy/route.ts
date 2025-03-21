@@ -1,51 +1,87 @@
 import { NextResponse } from 'next/server';
 import { createDbClient } from '@/lib/db';
 import { activities, users } from '@/lib/db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { createClient } from '@/utils/supabase/server';
 
 /**
  * GET handler to fetch privacy settings for a user
  * Returns privacy settings for each platform
+ * Supports both new platform_settings table and legacy activities table privacy columns
  */
-export async function GET(request: Request) {
-  // Extract username from query parameters
-  const url = new URL(request.url);
-  const username = url.searchParams.get('username');
-  
-  if (!username) {
-    return NextResponse.json({ error: 'Username is required' }, { status: 400 });
-  }
-  
+export async function GET(req: Request) {
   try {
-    // Create database client
+    const { searchParams } = new URL(req.url);
+    const username = searchParams.get('username');
+    
+    if (!username) {
+      return NextResponse.json(
+        { error: 'Username parameter is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Initialize Supabase client
+    const supabase = await createClient();
+    
+    // Try to get privacy settings from platform_settings table first
+    const { data: privacyData, error: privacyError } = await supabase
+      .from('platform_settings')
+      .select('platform, is_private')
+      .eq('username', username);
+    
+    // If there are privacy settings in the platform_settings table, use those
+    if (!privacyError && privacyData && privacyData.length > 0) {
+      // Convert array of settings to an object for easier consumption
+      const privacySettings: Record<string, boolean> = {};
+      
+      privacyData.forEach(setting => {
+        privacySettings[setting.platform] = setting.is_private;
+      });
+      
+      return NextResponse.json({
+        privacy: privacySettings
+      });
+    }
+    
+    // Fallback to the activities table if no settings found in platform_settings
+    // Create database client for Drizzle
     const db = createDbClient();
     
     // Get the most recent activity for the user to check privacy settings
-    const userActivities = await db.query.activities.findFirst({
-      where: and(
-        eq(activities.username, username)
-      ),
-      orderBy: (activitiesTable) => [desc(activitiesTable.activity_date)]
+    const userActivity = await db.query.activities.findFirst({
+      where: eq(activities.username, username),
+      orderBy: [desc(activities.activity_date)]
     });
     
-    if (!userActivities) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!userActivity) {
+      // No activities found, return empty privacy settings
+      return NextResponse.json({
+        privacy: {
+          github: false,
+          twitter: false,
+          instagram: false,
+          youtube: false
+        }
+      });
     }
     
-    // Return privacy settings
+    // Return privacy settings from the activities table
     return NextResponse.json({
       privacy: {
-        github_private: userActivities.github_private,
-        twitter_private: userActivities.twitter_private,
-        youtube_private: userActivities.youtube_private,
-        instagram_private: userActivities.instagram_private
+        github: userActivity.github_private,
+        twitter: userActivity.twitter_private,
+        instagram: userActivity.instagram_private,
+        youtube: userActivity.youtube_private
       }
     });
     
   } catch (error) {
-    console.error('Error fetching privacy settings:', error);
-    return NextResponse.json({ error: 'Failed to fetch privacy settings' }, { status: 500 });
+    console.error('API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
