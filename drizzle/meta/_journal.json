@@ -8,6 +8,20 @@
       "when": 1742504147317,
       "tag": "0000_loving_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1742595155101,
+      "tag": "0001_robust_lilandra",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1742595534171,
+      "tag": "0002_wandering_wolfsbane",
+      "breakpoints": true
     }
   ]
 }
