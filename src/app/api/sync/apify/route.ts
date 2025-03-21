@@ -303,7 +303,7 @@ async function fetchPlatformData(
         `https://www.instagram.com/${username}/`
       ],
       "enhanceUserSearchWithFacebookPage": false,
-      "isUserReelFeedURL": true,
+      "isUserReelFeedURL": false,
       "isUserTaggedFeedURL": false,
       "onlyPostsNewerThan": formattedDate,
       "resultsLimit": 10,
