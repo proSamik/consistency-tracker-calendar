@@ -28,13 +28,14 @@ interface ActivityData {
 interface ConsistencyCalendarProps {
   username: string
   showSync?: boolean
+  platform?: 'github' | 'twitter' | 'instagram' | 'youtube' | 'all'
 }
 
 /**
  * Component that displays a GitHub-style contributions calendar
  * Shows activity across platforms and allows viewing details
  */
-export default function ConsistencyCalendar({ username, showSync = false }: ConsistencyCalendarProps) {
+export default function ConsistencyCalendar({ username, showSync = false, platform = 'all' }: ConsistencyCalendarProps) {
   const [activities, setActivities] = useState<ActivityData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -162,8 +163,11 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
   }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, activities.length]);
 
   // Handle syncing activities for a specific platform with useCallback
-  const syncPlatform = useCallback(async (platform: string) => {
+  const syncPlatform = useCallback(async (syncPlatform: string) => {
     if (!showSync) return;
+    
+    // Only sync the current platform if filtering is enabled
+    if (platform !== 'all' && syncPlatform !== platform) return;
     
     setSyncing(true);
     setError(null);
@@ -175,13 +179,13 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       let endpoint = '/api/sync/apify';
       let body: any = { date: today };
       
-      if (platform === 'github') {
+      if (syncPlatform === 'github') {
         endpoint = '/api/sync/github';
-      } else if (platform === 'youtube') {
+      } else if (syncPlatform === 'youtube') {
         endpoint = '/api/sync/youtube';
       } else {
         // For twitter and instagram, still use apify endpoint
-        body.platform = platform;
+        body.platform = syncPlatform;
       }
       
       const response = await fetch(endpoint, {
@@ -194,10 +198,10 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to sync ${platform} data (${response.status})`);
+        throw new Error(errorData.error || `Failed to sync ${syncPlatform} data (${response.status})`);
       }
       
-      console.log(`Successfully synced ${platform} data`);
+      console.log(`Successfully synced ${syncPlatform} data`);
       
       // Clear activities first to force a refresh
       setActivities([]);
@@ -213,11 +217,11 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
       }, 1000); // Increase delay to ensure data is ready
       
     } catch (err: any) {
-      console.error(`Error syncing ${platform}:`, err);
-      setError(err.message || `Failed to sync ${platform} data`);
+      console.error(`Error syncing ${syncPlatform}:`, err);
+      setError(err.message || `Failed to sync ${syncPlatform} data`);
       setSyncing(false);
     }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform]);
 
   /**
    * Helper function to refresh activities data
@@ -248,14 +252,80 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     }
   }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate]);
 
-  // Calculate color for a cell based on activity count
+  // Calculate color for a cell based on activity count and platform
   const getCellColor = (count: number) => {
     if (count === 0) return 'bg-gray-800'
-    if (count <= 2) return 'bg-emerald-900'
-    if (count <= 5) return 'bg-emerald-700'
-    if (count <= 10) return 'bg-emerald-600'
-    return 'bg-emerald-500'
+    
+    // Platform-specific colors
+    if (platform === 'github') {
+      if (count <= 2) return 'bg-green-900'
+      if (count <= 5) return 'bg-green-700'
+      if (count <= 10) return 'bg-green-600'
+      return 'bg-green-500'
+    } else if (platform === 'twitter') {
+      if (count <= 2) return 'bg-blue-900'
+      if (count <= 5) return 'bg-blue-700'
+      if (count <= 10) return 'bg-blue-600'
+      return 'bg-blue-500'
+    } else if (platform === 'instagram') {
+      if (count <= 2) return 'bg-pink-900'
+      if (count <= 5) return 'bg-pink-700'
+      if (count <= 10) return 'bg-pink-600'
+      return 'bg-pink-500'
+    } else if (platform === 'youtube') {
+      if (count <= 2) return 'bg-red-900'
+      if (count <= 5) return 'bg-red-700'
+      if (count <= 10) return 'bg-red-600'
+      return 'bg-red-500'
+    } else {
+      // Default emerald colors for all platforms
+      if (count <= 2) return 'bg-emerald-900'
+      if (count <= 5) return 'bg-emerald-700'
+      if (count <= 10) return 'bg-emerald-600'
+      return 'bg-emerald-500'
+    }
   }
+
+  // Filter and process activities based on platform
+  const filteredActivities = useMemo(() => {
+    if (platform === 'all') {
+      return activities;
+    }
+    
+    return activities.map(activity => {
+      const platformCount = activity[platform] || 0;
+      return {
+        ...activity,
+        count: platformCount // Replace total count with platform-specific count
+      };
+    });
+  }, [activities, platform]);
+
+  // Get platform-specific title
+  const getPlatformTitle = useMemo(() => {
+    if (platform === 'all') return 'All Platforms';
+    if (platform === 'github') return 'GitHub';
+    if (platform === 'twitter') return 'Twitter';
+    if (platform === 'instagram') return 'Instagram';
+    if (platform === 'youtube') return 'YouTube';
+    return '';
+  }, [platform]);
+  
+  // Get platform-specific button class
+  const getPlatformButtonClass = useCallback((buttonPlatform: string) => {
+    if (syncing) return 'bg-gray-700';
+    
+    if (buttonPlatform === 'github') 
+      return 'bg-green-700 hover:bg-green-600';
+    if (buttonPlatform === 'twitter') 
+      return 'bg-blue-700 hover:bg-blue-600';
+    if (buttonPlatform === 'instagram') 
+      return 'bg-pink-700 hover:bg-pink-600';
+    if (buttonPlatform === 'youtube') 
+      return 'bg-red-700 hover:bg-red-600';
+    
+    return 'bg-indigo-700 hover:bg-indigo-600';
+  }, [syncing]);
 
   // Handle clicking on a day cell
   const handleDayClick = useCallback((date: Date) => {
@@ -283,9 +353,9 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold">
-          {activities.length > 0 
-            ? `${activities.reduce((sum, a) => sum + a.count, 0)} contributions in ${dateRange.startDate.getFullYear()}`
-            : 'Consistency Calendar'}
+          {filteredActivities.length > 0 
+            ? `${filteredActivities.reduce((sum, a) => sum + a.count, 0)} ${getPlatformTitle} contributions in ${dateRange.startDate.getFullYear()}`
+            : `${getPlatformTitle} Calendar`}
         </h2>
         
         {/* Year selector */}
@@ -302,37 +372,45 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
         </div>
       </div>
       
-      {/* Sync buttons */}
+      {/* Sync button - Show only the relevant platform's button */}
       {showSync && (
         <div className="mb-4 flex space-x-2">
-          <button
-            onClick={() => syncPlatform('github')}
-            disabled={syncing}
-            className={`px-3 py-1 rounded-md ${syncing ? 'bg-gray-700' : 'bg-indigo-700 hover:bg-indigo-600'}`}
-          >
-            {syncing ? 'Syncing...' : 'Sync GitHub'}
-          </button>
-          <button
-            onClick={() => syncPlatform('twitter')}
-            disabled={syncing}
-            className={`px-3 py-1 rounded-md ${syncing ? 'bg-gray-700' : 'bg-blue-700 hover:bg-blue-600'}`}
-          >
-            {syncing ? 'Syncing...' : 'Sync Twitter'}
-          </button>
-          <button
-            onClick={() => syncPlatform('instagram')}
-            disabled={syncing}
-            className={`px-3 py-1 rounded-md ${syncing ? 'bg-gray-700' : 'bg-pink-700 hover:bg-pink-600'}`}
-          >
-            {syncing ? 'Syncing...' : 'Sync Instagram'}
-          </button>
-          <button
-            onClick={() => syncPlatform('youtube')}
-            disabled={syncing}
-            className={`px-3 py-1 rounded-md ${syncing ? 'bg-gray-700' : 'bg-red-700 hover:bg-red-600'}`}
-          >
-            {syncing ? 'Syncing...' : 'Sync YouTube'}
-          </button>
+          {(platform === 'all' || platform === 'github') && (
+            <button
+              onClick={() => syncPlatform('github')}
+              disabled={syncing}
+              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('github')}`}
+            >
+              {syncing ? 'Syncing...' : 'Sync GitHub'}
+            </button>
+          )}
+          {(platform === 'all' || platform === 'twitter') && (
+            <button
+              onClick={() => syncPlatform('twitter')}
+              disabled={syncing}
+              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('twitter')}`}
+            >
+              {syncing ? 'Syncing...' : 'Sync Twitter'}
+            </button>
+          )}
+          {(platform === 'all' || platform === 'instagram') && (
+            <button
+              onClick={() => syncPlatform('instagram')}
+              disabled={syncing}
+              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('instagram')}`}
+            >
+              {syncing ? 'Syncing...' : 'Sync Instagram'}
+            </button>
+          )}
+          {(platform === 'all' || platform === 'youtube') && (
+            <button
+              onClick={() => syncPlatform('youtube')}
+              disabled={syncing}
+              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('youtube')}`}
+            >
+              {syncing ? 'Syncing...' : 'Sync YouTube'}
+            </button>
+          )}
         </div>
       )}
       
@@ -370,7 +448,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
                 <div key={weekIndex} className="flex flex-col gap-1">
                   {week.map((day, dayIndex) => {
                     // Find activity for this day if any
-                    const activity = activities.find(a => 
+                    const activity = filteredActivities.find(a => 
                       isSameDay(parseISO(a.date), day)
                     )
                     
@@ -398,15 +476,51 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
         </div>
       )}
       
-      {/* Legend */}
+      {/* Legend - Use platform-specific colors */}
       <div className="mt-4 flex items-center justify-center text-sm">
         <span className="mr-2">Less</span>
         <div className="flex gap-1">
           <div className="w-4 h-4 bg-gray-800 rounded-sm"></div>
-          <div className="w-4 h-4 bg-emerald-900 rounded-sm"></div>
-          <div className="w-4 h-4 bg-emerald-700 rounded-sm"></div>
-          <div className="w-4 h-4 bg-emerald-600 rounded-sm"></div>
-          <div className="w-4 h-4 bg-emerald-500 rounded-sm"></div>
+          {platform === 'github' && (
+            <>
+              <div className="w-4 h-4 bg-green-900 rounded-sm"></div>
+              <div className="w-4 h-4 bg-green-700 rounded-sm"></div>
+              <div className="w-4 h-4 bg-green-600 rounded-sm"></div>
+              <div className="w-4 h-4 bg-green-500 rounded-sm"></div>
+            </>
+          )}
+          {platform === 'twitter' && (
+            <>
+              <div className="w-4 h-4 bg-blue-900 rounded-sm"></div>
+              <div className="w-4 h-4 bg-blue-700 rounded-sm"></div>
+              <div className="w-4 h-4 bg-blue-600 rounded-sm"></div>
+              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+            </>
+          )}
+          {platform === 'instagram' && (
+            <>
+              <div className="w-4 h-4 bg-pink-900 rounded-sm"></div>
+              <div className="w-4 h-4 bg-pink-700 rounded-sm"></div>
+              <div className="w-4 h-4 bg-pink-600 rounded-sm"></div>
+              <div className="w-4 h-4 bg-pink-500 rounded-sm"></div>
+            </>
+          )}
+          {platform === 'youtube' && (
+            <>
+              <div className="w-4 h-4 bg-red-900 rounded-sm"></div>
+              <div className="w-4 h-4 bg-red-700 rounded-sm"></div>
+              <div className="w-4 h-4 bg-red-600 rounded-sm"></div>
+              <div className="w-4 h-4 bg-red-500 rounded-sm"></div>
+            </>
+          )}
+          {platform === 'all' && (
+            <>
+              <div className="w-4 h-4 bg-emerald-900 rounded-sm"></div>
+              <div className="w-4 h-4 bg-emerald-700 rounded-sm"></div>
+              <div className="w-4 h-4 bg-emerald-600 rounded-sm"></div>
+              <div className="w-4 h-4 bg-emerald-500 rounded-sm"></div>
+            </>
+          )}
         </div>
         <span className="ml-2">More</span>
       </div>
@@ -417,6 +531,7 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
           username={username}
           date={selectedDate} 
           onClose={handleCloseDetails} 
+          platformFilter={platform === 'all' ? undefined : platform}
         />
       )}
     </div>
