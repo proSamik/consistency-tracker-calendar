@@ -87,8 +87,8 @@ export async function POST(request: Request) {
             headers: {
               'Content-Type': 'application/json',
               'x-timezone-offset': timezoneOffset.toString(),
-              // Pass cron secret if it exists
-              ...(process.env.CRON_SECRET && { 'Authorization': `Bearer ${process.env.CRON_SECRET}` })
+              // Pass cron secret for authorization
+              'Authorization': `Bearer ${cronSecret}`
             },
             body: JSON.stringify(body),
           })
