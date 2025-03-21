@@ -8,12 +8,15 @@ import {
   eachDayOfInterval,
   format,
   parseISO,
-  isSameDay,
   isAfter,
   startOfYear,
   endOfYear
 } from 'date-fns'
 import ActivityDetails from '@/components/ActivityDetails'
+import CalendarGrid from '@/components/CalendarGrid'
+import CalendarLegend from '@/components/CalendarLegend'
+import SyncControls from '@/components/SyncControls'
+import CalendarHeader from '@/components/CalendarHeader'
 
 interface ActivityData {
   date: string
@@ -367,72 +370,23 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
   
   return (
     <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
-        <h2 className="text-xl font-bold">
-          {filteredActivities.length > 0 
-            ? `${filteredActivities.reduce((sum, a) => sum + a.count, 0)} ${getPlatformTitle} contributions in ${dateRange.startDate.getFullYear()}`
-            : `${getPlatformTitle} Calendar`}
-        </h2>
-        
-        {/* Year selector - Display only 2025 for now */}
-        <div className="relative w-full sm:w-auto max-w-xs">
-          <div className="flex items-center justify-between space-x-2 bg-gray-800 rounded-md px-3 py-1">
-            <span className="text-sm font-medium">Year:</span>
-            <span className="text-sm font-bold text-blue-400">2025</span>
-          </div>
-          {/* We'll uncomment and use this slider when more years are added 
-          <input 
-            type="range" 
-            min="0" 
-            max="0" 
-            value={yearOffset} 
-            onChange={(e) => changeYear(Number(e.target.value))}
-            className="w-full h-1 mt-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-          />
-          */}
-        </div>
-      </div>
+      {/* Calendar Header */}
+      <CalendarHeader
+        filteredActivities={filteredActivities}
+        getPlatformTitle={getPlatformTitle}
+        dateRange={dateRange}
+        yearOffset={yearOffset}
+        changeYear={changeYear}
+      />
       
-      {/* Sync button - Show only the relevant platform's button */}
+      {/* Sync Controls */}
       {showSync && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {(platform === 'all' || platform === 'github') && (
-            <button
-              onClick={() => syncPlatform('github')}
-              disabled={syncing}
-              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('github')}`}
-            >
-              {syncing ? 'Syncing...' : 'Sync GitHub'}
-            </button>
-          )}
-          {(platform === 'all' || platform === 'twitter') && (
-            <button
-              onClick={() => syncPlatform('twitter')}
-              disabled={syncing}
-              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('twitter')}`}
-            >
-              {syncing ? 'Syncing...' : 'Sync Twitter'}
-            </button>
-          )}
-          {(platform === 'all' || platform === 'instagram') && (
-            <button
-              onClick={() => syncPlatform('instagram')}
-              disabled={syncing}
-              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('instagram')}`}
-            >
-              {syncing ? 'Syncing...' : 'Sync Instagram'}
-            </button>
-          )}
-          {(platform === 'all' || platform === 'youtube') && (
-            <button
-              onClick={() => syncPlatform('youtube')}
-              disabled={syncing}
-              className={`px-3 py-1 rounded-md ${getPlatformButtonClass('youtube')}`}
-            >
-              {syncing ? 'Syncing...' : 'Sync YouTube'}
-            </button>
-          )}
-        </div>
+        <SyncControls
+          platform={platform}
+          syncing={syncing}
+          syncPlatform={syncPlatform}
+          getPlatformButtonClass={getPlatformButtonClass}
+        />
       )}
       
       {error && (
@@ -441,117 +395,20 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
         </div>
       )}
       
-      {loading ? (
-        <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      ) : (
-        <>
-          <div className="md:hidden text-xs text-gray-400 italic mb-2 text-center">
-            Swipe left/right to view full calendar
-          </div>
-          <div className="overflow-x-auto -mx-4 px-4">
-            <div className="min-w-[768px] grid grid-cols-[auto_1fr] gap-2">
-              {/* Month labels */}
-              <div className="col-start-2 flex">
-                {months.map((month, i) => (
-                  <div key={i} className="flex-1 text-center text-xs text-gray-400">
-                    {month.name}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Day labels and cells */}
-              <div className="flex flex-col justify-around h-full py-1">
-                <div className="text-xs text-gray-400">Mon</div>
-                <div className="text-xs text-gray-400">Wed</div>
-                <div className="text-xs text-gray-400">Fri</div>
-              </div>
-              
-              <div className="grid grid-cols-52 gap-1">
-                {weeks.map((week, weekIndex) => (
-                  <div key={weekIndex} className="flex flex-col gap-1">
-                    {week.map((day, dayIndex) => {
-                      // Find activity for this day if any
-                      const activity = filteredActivities.find(a => {
-                        // Convert activity date to local timezone for comparison
-                        const activityDate = toLocalDate(a.date);
-                        return isSameDay(activityDate, day);
-                      });
-                      
-                      // Skip days outside our target year
-                      if (day.getFullYear() !== dateRange.startDate.getFullYear()) {
-                        return <div key={dayIndex} className="w-5 h-5"></div>
-                      }
-                      
-                      const count = activity ? activity.count : 0
-                      const colorClass = getCellColor(count)
-                      
-                      return (
-                        <div
-                          key={dayIndex}
-                          className={`w-5 h-5 rounded-sm ${colorClass} cursor-pointer hover:opacity-80 transition-opacity`}
-                          title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
-                          onClick={() => handleDayClick(day)}
-                        ></div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Calendar Grid */}
+      <CalendarGrid
+        months={months}
+        weeks={weeks}
+        dateRange={dateRange}
+        filteredActivities={filteredActivities}
+        getCellColor={getCellColor}
+        toLocalDate={toLocalDate}
+        handleDayClick={handleDayClick}
+        loading={loading}
+      />
       
-      {/* Legend - Use platform-specific colors */}
-      <div className="mt-4 flex items-center justify-center text-sm">
-        <span className="mr-2">Less</span>
-        <div className="flex gap-1">
-          <div className="w-4 h-4 bg-gray-800 rounded-sm"></div>
-          {platform === 'github' && (
-            <>
-              <div className="w-4 h-4 bg-green-900 rounded-sm"></div>
-              <div className="w-4 h-4 bg-green-700 rounded-sm"></div>
-              <div className="w-4 h-4 bg-green-600 rounded-sm"></div>
-              <div className="w-4 h-4 bg-green-500 rounded-sm"></div>
-            </>
-          )}
-          {platform === 'twitter' && (
-            <>
-              <div className="w-4 h-4 bg-blue-900 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-700 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-600 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
-            </>
-          )}
-          {platform === 'instagram' && (
-            <>
-              <div className="w-4 h-4 bg-pink-900 rounded-sm"></div>
-              <div className="w-4 h-4 bg-pink-700 rounded-sm"></div>
-              <div className="w-4 h-4 bg-pink-600 rounded-sm"></div>
-              <div className="w-4 h-4 bg-pink-500 rounded-sm"></div>
-            </>
-          )}
-          {platform === 'youtube' && (
-            <>
-              <div className="w-4 h-4 bg-red-900 rounded-sm"></div>
-              <div className="w-4 h-4 bg-red-700 rounded-sm"></div>
-              <div className="w-4 h-4 bg-red-600 rounded-sm"></div>
-              <div className="w-4 h-4 bg-red-500 rounded-sm"></div>
-            </>
-          )}
-          {platform === 'all' && (
-            <>
-              <div className="w-4 h-4 bg-emerald-900 rounded-sm"></div>
-              <div className="w-4 h-4 bg-emerald-700 rounded-sm"></div>
-              <div className="w-4 h-4 bg-emerald-600 rounded-sm"></div>
-              <div className="w-4 h-4 bg-emerald-500 rounded-sm"></div>
-            </>
-          )}
-        </div>
-        <span className="ml-2">More</span>
-      </div>
+      {/* Calendar Legend */}
+      <CalendarLegend platform={platform} />
       
       {/* Details Modal */}
       {showDetails && selectedDate && (
