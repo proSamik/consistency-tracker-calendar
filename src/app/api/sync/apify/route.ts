@@ -100,6 +100,11 @@ export async function POST(request: NextRequest) {
     // Call appropriate Apify actor based on platform
     const platformData = await fetchPlatformData(platform, platformUsername, targetDate, apifyToken)
     
+    // Log Instagram actor output to terminal
+    if (platform === 'instagram') {
+      console.log('Instagram Actor Output:', platformData);
+    }
+
     // Update or insert activity data in the database
     await executeWithRetry(async () => {
       // Check if activity record exists for this date
@@ -215,12 +220,20 @@ async function fetchPlatformData(
       endAtDate: formattedDate
     }
   } else if (platform === 'instagram') {
+    // For Instagram, we create a user-specific configuration
     input = {
-      usernames: [username],
-      resultsLimit: 100,
-      resultsType: 'posts',
-      addParentData: true,
-      proxy: { useApifyProxy: true }
+    "addParentData": false,
+    "directUrls": [
+      `https://www.instagram.com/${username}/`
+    ],
+    "enhanceUserSearchWithFacebookPage": false,
+    "isUserReelFeedURL": true,
+    "isUserTaggedFeedURL": false,
+    "onlyPostsNewerThan": formattedDate,
+    "resultsLimit": 10,
+    "resultsType": "posts",
+    "searchLimit": 1,
+    "searchType": "hashtag"
     }
   }
   
@@ -229,13 +242,15 @@ async function fetchPlatformData(
     console.log(`Calling Apify API with actor ID: ${actorId}`)
     console.log(`Input data:`, JSON.stringify(input))
     
+    // Important: Do not wrap the input data inside another object
     const startResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ input })
+      body: JSON.stringify(input)
     })
+
     
     if (!startResponse.ok) {
       const errorText = await startResponse.text().catch(() => startResponse.statusText)
@@ -262,7 +277,7 @@ async function fetchPlatformData(
     
     // Poll for completion
     const maxAttempts = 30
-    const pollInterval = 2000 // 2 seconds
+    const pollInterval = 5000 // 5 seconds
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Wait before polling
@@ -301,6 +316,7 @@ async function fetchPlatformData(
         
         const items = await itemsResponse.json()
         console.log(`Retrieved ${items.length} items from dataset`)
+        console.log('Instagram Actor Output:', items);
         
         // Format data based on platform
         return formatPlatformData(platform, items, formattedDate)
@@ -331,19 +347,46 @@ async function fetchPlatformData(
  * @returns Formatted platform data
  */
 function formatPlatformData(platform: string, items: any[], date: string) {
+  console.log(`Formatting data for ${platform} with ${items.length} items, target date: ${date}`)
+  
   // Filter items by date if needed
   const filteredItems = items.filter(item => {
     // Different platforms return dates in different formats
-    const itemDate = item.date || item.postedAt || item.createdAtFormatted || item.timestamp
+    let itemDate = null
+    
+    if (platform === 'twitter') {
+      itemDate = item.date || item.postedAt || item.createdAtFormatted || item.timestamp || item.createdAt
+    } else if (platform === 'instagram') {
+      // Instagram can return timestamps in many formats
+      itemDate = item.timestamp || item.taken_at || item.taken_at_timestamp || 
+                (item.node && item.node.taken_at_timestamp ? new Date(item.node.taken_at_timestamp * 1000).toISOString() : null)
+      
+      // If we have a Unix timestamp (seconds since epoch), convert to ISO
+      if (typeof itemDate === 'number') {
+        itemDate = new Date(itemDate * 1000).toISOString()
+      }
+    }
+    
     if (!itemDate) return false
     
     // Convert to YYYY-MM-DD format for comparison
-    const itemDateFormatted = typeof itemDate === 'string' 
-      ? itemDate.substring(0, 10) 
-      : formatDate(new Date(itemDate))
+    let itemDateFormatted = ''
+    if (typeof itemDate === 'string') {
+      itemDateFormatted = itemDate.substring(0, 10)
+    } else if (itemDate instanceof Date) {
+      itemDateFormatted = formatDate(itemDate)
+    } else {
+      return false
+    }
     
-    return itemDateFormatted === date
+    const result = itemDateFormatted === date
+    if (result) {
+      console.log(`Found matching date: ${itemDateFormatted} === ${date}`)
+    }
+    return result
   })
+  
+  console.log(`Filtered to ${filteredItems.length} items with date: ${date}`)
   
   switch (platform) {
     case 'twitter': {
@@ -364,19 +407,27 @@ function formatPlatformData(platform: string, items: any[], date: string) {
     }
     
     case 'instagram': {
-      const posts = filteredItems.map(item => ({
-        id: item.id,
-        type: item.type,
-        url: item.url,
-        timestamp: item.timestamp,
-        caption: item.caption,
-        likes: item.likesCount,
-        comments: item.commentsCount
-      }))
+      console.log('Formatting Instagram data, filtered items:', filteredItems.length)
+      
+      // Instagram API might return posts directly or might have a different structure
+      const posts = filteredItems.map(item => {
+        // Handle potential nested structures (Instagram API has changed formats several times)
+        const node = item.node || item
+        
+        return {
+          id: node.id || node.pk || '',
+          type: node.type || node.media_type || node.__typename || 'post',
+          url: node.url || node.permalink || `https://www.instagram.com/p/${node.shortcode || node.code}/` || '',
+          timestamp: node.timestamp || (node.taken_at_timestamp ? new Date(node.taken_at_timestamp * 1000).toISOString() : null) || new Date().toISOString(),
+          caption: node.caption || node.edge_media_to_caption?.edges[0]?.node?.text || '',
+          likes: node.likesCount || node.like_count || node.edge_media_preview_like?.count || 0,
+          comments: node.commentsCount || node.comment_count || node.edge_media_to_comment?.count || 0
+        }
+      })
       
       return {
         post_count: posts.length,
-        post_urls: posts.map(p => p.url),
+        post_urls: posts.map(p => p.url).filter(url => url), // Filter out empty URLs
         posts: posts
       }
     }
@@ -410,9 +461,9 @@ function getPlatformItemCount(data: any): number {
 function getActorId(platform: string): string {
   switch (platform) {
     case 'twitter':
-      return 'apidojo/tweet-scraper' // Updated ID for Twitter (X) Scraper
+      return 'apidojo~tweet-scraper' // Updated ID for Twitter (X) Scraper
     case 'instagram':
-      return 'apify/instagram-scraper' // Updated ID for Instagram Scraper
+      return 'apify~instagram-scraper' // Updated ID for Instagram Scraper
     default:
       throw new Error(`Unsupported platform: ${platform}`)
   }
