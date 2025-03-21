@@ -171,15 +171,25 @@ export default function ConsistencyCalendar({ username, showSync = false }: Cons
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      const response = await fetch(`/api/sync/${platform === 'github' ? 'github' : 'apify'}`, {
+      // Use different endpoints based on platform
+      let endpoint = '/api/sync/apify';
+      let body: any = { date: today };
+      
+      if (platform === 'github') {
+        endpoint = '/api/sync/github';
+      } else if (platform === 'youtube') {
+        endpoint = '/api/sync/youtube';
+      } else {
+        // For twitter and instagram, still use apify endpoint
+        body.platform = platform;
+      }
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          date: today,
-          ...(platform !== 'github' && { platform }),
-        }),
+        body: JSON.stringify(body),
       });
       
       if (!response.ok) {
