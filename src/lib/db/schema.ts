@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, date, integer, jsonb, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, date, integer, jsonb, primaryKey, boolean } from 'drizzle-orm/pg-core';
 
 /**
  * User table schema definition
@@ -42,6 +42,12 @@ export const activities = pgTable('activities', {
     repositories: []
   }),
   
+  // Privacy settings for platforms
+  github_private: boolean('github_private').default(false),
+  twitter_private: boolean('twitter_private').default(false),
+  youtube_private: boolean('youtube_private').default(false),
+  instagram_private: boolean('instagram_private').default(false),
+  
   twitter_data: jsonb('twitter_data').default({
     tweet_count: 0,
     tweet_urls: []
@@ -66,4 +72,42 @@ export const activities = pgTable('activities', {
   return {
     pk: primaryKey({ columns: [table.username, table.activity_date] }),
   }
+});
+
+/**
+ * SyncQueue table schema definition
+ * Used to manage queued sync tasks for the cron job
+ * This prevents high memory usage by processing users sequentially
+ */
+export const syncQueue = pgTable('sync_queue', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  
+  // The user to sync
+  user_id: uuid('user_id').notNull().references(() => users.id),
+  
+  // The platform to sync
+  platform: text('platform').notNull(),
+  
+  // The date to sync for
+  sync_date: date('sync_date').notNull(),
+  
+  // Status of the sync job
+  status: text('status').notNull().default('pending'), // pending, processing, completed, failed
+  
+  // When processing started
+  started_at: timestamp('started_at'),
+  
+  // When processing completed
+  completed_at: timestamp('completed_at'),
+  
+  // Error message if failed
+  error: text('error'),
+  
+  // Number of retries
+  retry_count: integer('retry_count').default(0),
+  
+  // Priority (lower number = higher priority)
+  priority: integer('priority').default(10),
 }); 
