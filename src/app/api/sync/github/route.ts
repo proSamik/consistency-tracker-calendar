@@ -54,22 +54,40 @@ const GITHUB_CONTRIBUTIONS_QUERY = `
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get the currently logged in user
-    const user = await getLoggedInUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required. Please log in.' }, 
-        { status: 401 }
-      )
-    }
-
     // Get request data
     const requestData = await request.json().catch(() => ({}))
-    const { date, token: userProvidedToken } = requestData
+    const { date, token: userProvidedToken, userId } = requestData
     
     // Parse date or use current date if not provided
     const targetDate = date ? parseISO(date) : new Date()
     const formattedDate = formatDate(targetDate)
+    
+    let user;
+    
+    // If userId is provided, this is a request from the cron job
+    // Otherwise, get the currently logged in user
+    if (userId) {
+      // Check if this is a cron job request with the proper authorization
+      const authHeader = request.headers.get('Authorization')
+      if (process.env.CRON_SECRET && (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== process.env.CRON_SECRET)) {
+        return NextResponse.json(
+          { error: 'Unauthorized. Cron secret required for userId parameter.' }, 
+          { status: 401 }
+        )
+      }
+      
+      // Use the provided userId
+      user = { id: userId }
+    } else {
+      // Get the currently logged in user
+      user = await getLoggedInUser()
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Authentication required. Please log in.' }, 
+          { status: 401 }
+        )
+      }
+    }
     
     // Get GitHub username from user profile
     const db = createDbClient()
