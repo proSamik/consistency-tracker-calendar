@@ -33,6 +33,7 @@ interface ConsistencyCalendarProps {
   showSync?: boolean
   showPrivacyControls?: boolean
   platform?: 'github' | 'twitter' | 'instagram' | 'youtube' | 'all'
+  isPublicView?: boolean
 }
 
 /**
@@ -43,7 +44,8 @@ export default function ConsistencyCalendar({
   username, 
   showSync = false, 
   showPrivacyControls = false,
-  platform = 'all' 
+  platform = 'all',
+  isPublicView = false
 }: ConsistencyCalendarProps) {
   const [activities, setActivities] = useState<ActivityData[]>([])
   const [loading, setLoading] = useState(true)
@@ -127,10 +129,18 @@ export default function ConsistencyCalendar({
         
         console.log(`Fetching activities for ${username} from ${dateRange.formattedStartDate} to ${dateRange.formattedEndDate}`);
         
-        const response = await fetch(
-          `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}&_=${Date.now()}`,
-          { signal: controller.signal }
-        );
+        const url = new URL(`/api/activities`, window.location.origin);
+        url.searchParams.append('username', username);
+        url.searchParams.append('start', dateRange.formattedStartDate);
+        url.searchParams.append('end', dateRange.formattedEndDate);
+        url.searchParams.append('_', Date.now().toString());
+        
+        // Add public view flag to respect privacy settings
+        if (isPublicView) {
+          url.searchParams.append('isPublicView', 'true');
+        }
+        
+        const response = await fetch(url.toString(), { signal: controller.signal });
         
         if (!isMounted) return;
         
@@ -174,7 +184,7 @@ export default function ConsistencyCalendar({
         controller.abort();
       }
     };
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, activities.length]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, activities.length, isPublicView]);
 
   // Handle syncing activities for a specific platform with useCallback
   const syncPlatform = useCallback(async (syncPlatform: string) => {
@@ -305,7 +315,7 @@ export default function ConsistencyCalendar({
       setError(err.message || `Failed to sync ${syncPlatform} data`);
       setSyncing(false);
     }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform, isPublicView]);
 
   /**
    * Helper function to refresh activities data
@@ -451,16 +461,16 @@ export default function ConsistencyCalendar({
         changeYear={changeYear}
       />
       
-      {/* Privacy Controls */}
-      {showPrivacyControls && (
+      {/* Privacy Controls - Only show when not in public view */}
+      {showPrivacyControls && !isPublicView && (
         <PrivacyControls
           username={username}
           platform={platform}
         />
       )}
       
-      {/* Sync Controls */}
-      {showSync && (
+      {/* Sync Controls - Only show when not in public view */}
+      {showSync && !isPublicView && (
         <SyncControls
           platform={platform}
           syncing={syncing}
@@ -490,13 +500,14 @@ export default function ConsistencyCalendar({
       {/* Calendar Legend */}
       <CalendarLegend platform={platform} />
       
-      {/* Details Modal */}
+      {/* Details Modal - Disable when in public view if needed */}
       {showDetails && selectedDate && (
         <ActivityDetails 
           username={username}
           date={selectedDate} 
           onClose={handleCloseDetails} 
           platformFilter={platform === 'all' ? undefined : platform}
+          isPublicView={isPublicView}
         />
       )}
     </div>
