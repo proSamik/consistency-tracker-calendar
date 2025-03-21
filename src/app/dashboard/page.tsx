@@ -110,6 +110,7 @@ export default async function DashboardPage() {
               <ConsistencyCalendar 
                 username={userData.username} 
                 showSync={true}
+                showPrivacyControls={true}
                 platform="all"
               />
             </div>
@@ -120,6 +121,7 @@ export default async function DashboardPage() {
               <ConsistencyCalendar 
                 username={userData.username} 
                 showSync={true}
+                showPrivacyControls={true}
                 platform="github"
               />
             </div>
@@ -130,6 +132,7 @@ export default async function DashboardPage() {
               <ConsistencyCalendar 
                 username={userData.username} 
                 showSync={true}
+                showPrivacyControls={true}
                 platform="twitter"
               />
             </div>
@@ -140,6 +143,7 @@ export default async function DashboardPage() {
               <ConsistencyCalendar 
                 username={userData.username} 
                 showSync={true}
+                showPrivacyControls={true}
                 platform="instagram"
               />
             </div>
@@ -150,6 +154,7 @@ export default async function DashboardPage() {
               <ConsistencyCalendar 
                 username={userData.username} 
                 showSync={true}
+                showPrivacyControls={true}
                 platform="youtube"
               />
             </div>
