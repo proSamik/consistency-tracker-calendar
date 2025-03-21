@@ -214,10 +214,12 @@ async function fetchPlatformData(
   // Different platforms need different input formats
   if (platform === 'twitter') {
     input = {
-      searchTerms: [`from:${username}`],
-      maxTweets: 50,
-      startFromDate: formattedDate,
-      endAtDate: formattedDate
+      start_urls: [
+        {
+          url: `https://x.com/${username}`
+        }
+      ],
+      since_date: formattedDate,
     }
   } else if (platform === 'instagram') {
     // For Instagram, we create a user-specific configuration
