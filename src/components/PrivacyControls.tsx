@@ -57,7 +57,24 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
         
         const data = await response.json()
         console.log('Received privacy settings:', data);
-        setPrivacySettings(data.privacy)
+        
+        // Handle both old and new privacy format
+        if (data.privacy) {
+          const privacy = data.privacy;
+          
+          // If it's the new format (github, twitter, etc.), convert to old format (github_private, twitter_private, etc.)
+          if ('github' in privacy || 'twitter' in privacy || 'youtube' in privacy || 'instagram' in privacy) {
+            setPrivacySettings({
+              github_private: privacy.github || false,
+              twitter_private: privacy.twitter || false,
+              youtube_private: privacy.youtube || false,
+              instagram_private: privacy.instagram || false
+            });
+          } else {
+            // Old format, use as-is
+            setPrivacySettings(privacy);
+          }
+        }
       } catch (err: any) {
         console.error('Error fetching privacy settings:', err)
         setError('Failed to load privacy settings')
