@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { format } from 'date-fns'
-import { createDbClient, executeWithRetry } from '@/lib/db'
-import { users } from '@/lib/db/schema'
+import { enqueueAllUsersSync, processTasks, cleanupOldTasks } from '@/lib/queue'
 
 /**
  * Background job that syncs all platforms
@@ -42,91 +41,45 @@ export async function POST(request: Request) {
     }
 
     // Get the current date
-    const today = format(new Date(), 'yyyy-MM-dd')
+    const today = new Date()
     
     // Define all platforms to sync
     const platformsToSync = ['github', 'twitter', 'instagram', 'youtube']
-    const results: Record<string, { success: boolean; message: string }> = {}
     
-    // Get database client
-    const db = createDbClient()
+    // Clean up old tasks first (tasks completed/failed more than 7 days ago)
+    const cleanedTasks = await cleanupOldTasks(7)
+    console.log(`Cleaned up ${cleanedTasks} old tasks`)
     
-    // Get all users to sync
-    const usersData = await executeWithRetry(async () => {
-      return await db.select({
-        id: users.id,
-        username: users.username
-      })
-      .from(users)
-    })
-    
-    if (!usersData || usersData.length === 0) {
-      console.log('No users found to sync')
-      return NextResponse.json({ message: 'No users found to sync' }, { status: 200 })
+    // Add tasks to the queue
+    try {
+      const userCount = await enqueueAllUsersSync(platformsToSync, today)
+      console.log(`Added sync tasks for ${userCount} users to the queue`)
+    } catch (error) {
+      console.error('Error adding tasks to queue:', error)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to add tasks to queue' 
+      }, { status: 500 })
     }
     
-    // Process each platform for each user
-    for (const user of usersData) {
-      console.log(`Processing user: ${user.username}`)
-      
-      for (const platform of platformsToSync) {
-        try {
-          // Use different endpoints based on platform
-          let endpoint = '/api/sync/apify'
-          let body: any = { date: today }
-          
-          if (platform === 'github') {
-            endpoint = '/api/sync/github'
-          } else if (platform === 'youtube') {
-            endpoint = '/api/sync/youtube'
-          } else {
-            // For twitter and instagram, use apify endpoint
-            body.platform = platform
-          }
-          
-          // Add user ID to the body
-          body.userId = user.id
-          
-          // Get timezone offset
-          const timezoneOffset = 0 // Default to UTC for background jobs
-          
-          console.log(`Syncing ${platform} for user ${user.username}`)
-          
-          // Call platform-specific sync API
-          const response = await fetch(new URL(endpoint, request.url).toString(), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-timezone-offset': timezoneOffset.toString(),
-              // Pass cron secret for authorization
-              'Authorization': `Bearer ${cronSecret}`
-            },
-            body: JSON.stringify(body),
-          })
-          
-          if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`API error (${response.status}): ${errorText}`)
-          }
-          
-          results[`${user.username}_${platform}`] = { 
-            success: true, 
-            message: `Successfully synced ${platform}` 
-          }
-        } catch (err: any) {
-          console.error(`Error syncing ${platform} for ${user.username}:`, err)
-          results[`${user.username}_${platform}`] = { 
-            success: false, 
-            message: err.message || `Failed to sync ${platform}` 
-          }
-        }
-      }
+    // Process a batch of tasks immediately (up to 10)
+    let processedCount = 0
+    try {
+      processedCount = await processTasks(10)
+      console.log(`Processed ${processedCount} tasks from the queue`)
+    } catch (error) {
+      console.error('Error processing tasks:', error)
+      // We continue even if some tasks fail
     }
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Sync job completed', 
-      results 
+      message: 'Sync job queued successfully', 
+      stats: {
+        tasks_created: platformsToSync.length,
+        tasks_processed: processedCount,
+        tasks_cleaned: cleanedTasks
+      }
     })
   } catch (error: any) {
     console.error('Error in sync-all cron job:', error)
