@@ -10,10 +10,24 @@ import { users } from '@/lib/db/schema'
  */
 export async function POST(request: Request) {
   try {
+    // Get CRON_SECRET from environment variables
+    const cronSecret = process.env.CRON_SECRET
+    
+    if (!cronSecret) {
+      console.error('CRON_SECRET environment variable is not set')
+      return NextResponse.json(
+        { error: 'Server configuration error: CRON_SECRET is not configured.' }, 
+        { status: 500 }
+      )
+    }
+    
     // Verify API key/secret if provided in request
     const authHeader = request.headers.get('Authorization')
-    if (process.env.CRON_SECRET && (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== process.env.CRON_SECRET)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== cronSecret) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Valid cron secret required.' }, 
+        { status: 401 }
+      )
     }
 
     // Get the current date
