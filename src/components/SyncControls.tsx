@@ -4,7 +4,7 @@ import React from 'react'
 
 /**
  * Component that displays sync buttons for different platforms
- * Conditionally renders buttons based on selected platform and sync status
+ * Shows a single "Sync All" button for all platforms or individual platform buttons
  */
 export default function SyncControls({
   platform = 'all',
@@ -19,40 +19,23 @@ export default function SyncControls({
 }) {
   return (
     <div className="mb-4 flex flex-wrap gap-2">
-      {(platform === 'all' || platform === 'github') && (
+      {platform === 'all' ? (
+        // Show a single "Sync All" button when platform is 'all'
         <button
-          onClick={() => syncPlatform('github')}
+          onClick={() => syncPlatform('all')}
           disabled={syncing}
-          className={`px-3 py-1 rounded-md ${getPlatformButtonClass('github')}`}
+          className={`px-3 py-1 rounded-md ${syncing ? 'bg-gray-700' : 'bg-indigo-700 hover:bg-indigo-600'}`}
         >
-          {syncing ? 'Syncing...' : 'Sync GitHub'}
+          {syncing ? 'Syncing...' : 'Sync All Platforms'}
         </button>
-      )}
-      {(platform === 'all' || platform === 'twitter') && (
+      ) : (
+        // Show a single platform-specific button when a specific platform is selected
         <button
-          onClick={() => syncPlatform('twitter')}
+          onClick={() => syncPlatform(platform)}
           disabled={syncing}
-          className={`px-3 py-1 rounded-md ${getPlatformButtonClass('twitter')}`}
+          className={`px-3 py-1 rounded-md ${getPlatformButtonClass(platform)}`}
         >
-          {syncing ? 'Syncing...' : 'Sync Twitter'}
-        </button>
-      )}
-      {(platform === 'all' || platform === 'instagram') && (
-        <button
-          onClick={() => syncPlatform('instagram')}
-          disabled={syncing}
-          className={`px-3 py-1 rounded-md ${getPlatformButtonClass('instagram')}`}
-        >
-          {syncing ? 'Syncing...' : 'Sync Instagram'}
-        </button>
-      )}
-      {(platform === 'all' || platform === 'youtube') && (
-        <button
-          onClick={() => syncPlatform('youtube')}
-          disabled={syncing}
-          className={`px-3 py-1 rounded-md ${getPlatformButtonClass('youtube')}`}
-        >
-          {syncing ? 'Syncing...' : 'Sync YouTube'}
+          {syncing ? 'Syncing...' : `Sync ${platform.charAt(0).toUpperCase() + platform.slice(1)}`}
         </button>
       )}
     </div>
