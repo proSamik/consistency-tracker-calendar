@@ -7,9 +7,19 @@ import { users } from '@/lib/db/schema'
  * Background job that syncs all platforms
  * This endpoint is called by the cron job every 6 hours
  * It can also be protected with a secret key
+ * 
+ * To test this route:
+ * 1. Set CRON_SECRET in your .env file (use: openssl rand -base64 32)
+ * 2. Make a POST request to /api/cron/sync-all with the Authorization header:
+ *    curl -X POST http://localhost:3000/api/cron/sync-all \
+ *      -H "Content-Type: application/json" \
+ *      -H "Authorization: Bearer YOUR_CRON_SECRET" \
+ *      -d "{}"
  */
 export async function POST(request: Request) {
   try {
+    console.log('Starting cron job: sync-all platforms')
+    
     // Get CRON_SECRET from environment variables
     const cronSecret = process.env.CRON_SECRET
     
@@ -24,6 +34,7 @@ export async function POST(request: Request) {
     // Verify API key/secret if provided in request
     const authHeader = request.headers.get('Authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== cronSecret) {
+      console.error('Unauthorized attempt to access cron job')
       return NextResponse.json(
         { error: 'Unauthorized. Valid cron secret required.' }, 
         { status: 401 }
