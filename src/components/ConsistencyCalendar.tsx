@@ -44,6 +44,11 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
   const [syncing, setSyncing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Force yearOffset to 0 for now since we're only using 2025
+  useEffect(() => {
+    setYearOffset(0);
+  }, []);
+
   // Calculate date range using useMemo to prevent recalculations on every render
   const dateRange = useMemo(() => {
     const today = new Date()
@@ -362,30 +367,35 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
   
   return (
     <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
         <h2 className="text-xl font-bold">
           {filteredActivities.length > 0 
             ? `${filteredActivities.reduce((sum, a) => sum + a.count, 0)} ${getPlatformTitle} contributions in ${dateRange.startDate.getFullYear()}`
             : `${getPlatformTitle} Calendar`}
         </h2>
         
-        {/* Year selector */}
-        <div className="flex space-x-2">
-          {[0, 1, 2, 3, 4].map((year) => (
-            <button
-              key={year}
-              className={`px-4 py-1 rounded ${yearOffset === year ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-              onClick={() => changeYear(year)}
-            >
-              {new Date().getFullYear() - year}
-            </button>
-          ))}
+        {/* Year selector - Display only 2025 for now */}
+        <div className="relative w-full sm:w-auto max-w-xs">
+          <div className="flex items-center justify-between space-x-2 bg-gray-800 rounded-md px-3 py-1">
+            <span className="text-sm font-medium">Year:</span>
+            <span className="text-sm font-bold text-blue-400">2025</span>
+          </div>
+          {/* We'll uncomment and use this slider when more years are added 
+          <input 
+            type="range" 
+            min="0" 
+            max="0" 
+            value={yearOffset} 
+            onChange={(e) => changeYear(Number(e.target.value))}
+            className="w-full h-1 mt-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+          />
+          */}
         </div>
       </div>
       
       {/* Sync button - Show only the relevant platform's button */}
       {showSync && (
-        <div className="mb-4 flex space-x-2">
+        <div className="mb-4 flex flex-wrap gap-2">
           {(platform === 'all' || platform === 'github') && (
             <button
               onClick={() => syncPlatform('github')}
@@ -436,57 +446,62 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="grid grid-cols-[auto_1fr] gap-2">
-            {/* Month labels */}
-            <div className="col-start-2 flex">
-              {months.map((month, i) => (
-                <div key={i} className="flex-1 text-center text-xs text-gray-400">
-                  {month.name}
-                </div>
-              ))}
-            </div>
-            
-            {/* Day labels and cells */}
-            <div className="flex flex-col justify-around h-full py-1">
-              <div className="text-xs text-gray-400">Mon</div>
-              <div className="text-xs text-gray-400">Wed</div>
-              <div className="text-xs text-gray-400">Fri</div>
-            </div>
-            
-            <div className="grid grid-cols-52 gap-1">
-              {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-1">
-                  {week.map((day, dayIndex) => {
-                    // Find activity for this day if any
-                    const activity = filteredActivities.find(a => {
-                      // Convert activity date to local timezone for comparison
-                      const activityDate = toLocalDate(a.date);
-                      return isSameDay(activityDate, day);
-                    });
-                    
-                    // Skip days outside our target year
-                    if (day.getFullYear() !== dateRange.startDate.getFullYear()) {
-                      return <div key={dayIndex} className="w-5 h-5"></div>
-                    }
-                    
-                    const count = activity ? activity.count : 0
-                    const colorClass = getCellColor(count)
-                    
-                    return (
-                      <div
-                        key={dayIndex}
-                        className={`w-5 h-5 rounded-sm ${colorClass} cursor-pointer hover:opacity-80 transition-opacity`}
-                        title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
-                        onClick={() => handleDayClick(day)}
-                      ></div>
-                    )
-                  })}
-                </div>
-              ))}
+        <>
+          <div className="md:hidden text-xs text-gray-400 italic mb-2 text-center">
+            Swipe left/right to view full calendar
+          </div>
+          <div className="overflow-x-auto -mx-4 px-4">
+            <div className="min-w-[768px] grid grid-cols-[auto_1fr] gap-2">
+              {/* Month labels */}
+              <div className="col-start-2 flex">
+                {months.map((month, i) => (
+                  <div key={i} className="flex-1 text-center text-xs text-gray-400">
+                    {month.name}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Day labels and cells */}
+              <div className="flex flex-col justify-around h-full py-1">
+                <div className="text-xs text-gray-400">Mon</div>
+                <div className="text-xs text-gray-400">Wed</div>
+                <div className="text-xs text-gray-400">Fri</div>
+              </div>
+              
+              <div className="grid grid-cols-52 gap-1">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="flex flex-col gap-1">
+                    {week.map((day, dayIndex) => {
+                      // Find activity for this day if any
+                      const activity = filteredActivities.find(a => {
+                        // Convert activity date to local timezone for comparison
+                        const activityDate = toLocalDate(a.date);
+                        return isSameDay(activityDate, day);
+                      });
+                      
+                      // Skip days outside our target year
+                      if (day.getFullYear() !== dateRange.startDate.getFullYear()) {
+                        return <div key={dayIndex} className="w-5 h-5"></div>
+                      }
+                      
+                      const count = activity ? activity.count : 0
+                      const colorClass = getCellColor(count)
+                      
+                      return (
+                        <div
+                          key={dayIndex}
+                          className={`w-5 h-5 rounded-sm ${colorClass} cursor-pointer hover:opacity-80 transition-opacity`}
+                          title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
+                          onClick={() => handleDayClick(day)}
+                        ></div>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
       
       {/* Legend - Use platform-specific colors */}
