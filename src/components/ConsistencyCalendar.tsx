@@ -174,7 +174,7 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
     if (!showSync) return;
     
     // Only sync the current platform if filtering is enabled
-    if (platform !== 'all' && syncPlatform !== platform) return;
+    if (platform !== 'all' && syncPlatform !== platform && syncPlatform !== 'all') return;
     
     setSyncing(true);
     setError(null);
@@ -184,6 +184,71 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
       // Get user's timezone offset in minutes
       const timezoneOffsetMinutes = new Date().getTimezoneOffset();
       
+      // If 'all' is selected, sync all platforms
+      if (syncPlatform === 'all') {
+        console.log('Syncing all platforms sequentially');
+        
+        // Clear activities first to force a refresh
+        setActivities([]);
+        
+        // Define all platforms to sync
+        const platformsToSync = ['github', 'twitter', 'instagram', 'youtube'];
+        
+        for (const platformToSync of platformsToSync) {
+          try {
+            // Use different endpoints based on platform
+            let endpoint = '/api/sync/apify';
+            let body: any = { date: today };
+            
+            if (platformToSync === 'github') {
+              endpoint = '/api/sync/github';
+            } else if (platformToSync === 'youtube') {
+              endpoint = '/api/sync/youtube';
+            } else {
+              // For twitter and instagram, use apify endpoint
+              body.platform = platformToSync;
+            }
+            
+            console.log(`Syncing ${platformToSync} with timezone offset: ${timezoneOffsetMinutes} minutes`);
+            
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-timezone-offset': timezoneOffsetMinutes.toString(),
+              },
+              body: JSON.stringify(body),
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              console.error(`Error syncing ${platformToSync}: ${errorData.error || response.status}`);
+              // Continue with other platforms even if one fails
+              continue;
+            }
+            
+            console.log(`Successfully synced ${platformToSync} data`);
+          } catch (err) {
+            console.error(`Error syncing ${platformToSync}:`, err);
+            // Continue with other platforms even if one fails
+            continue;
+          }
+        }
+        
+        // Force refresh by incrementing the refresh key after all syncs
+        setRefreshKey(prev => prev + 1);
+        
+        // Wait a moment to ensure DB updates are complete
+        setTimeout(async () => {
+          // Refresh activities data
+          await refreshActivities();
+          setSyncing(false);
+        }, 1500); // Slightly longer delay when syncing all platforms
+        
+        return;
+      }
+      
+      // Handle single platform sync (original code)
       // Use different endpoints based on platform
       let endpoint = '/api/sync/apify';
       let body: any = { date: today };
