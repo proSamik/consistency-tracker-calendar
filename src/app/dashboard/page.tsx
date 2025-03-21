@@ -102,24 +102,68 @@ export default async function DashboardPage() {
         {/* Consistency Calendar Section */}
         {userData?.username && (
           <div className="mt-8">
-            <h2 className="text-2xl font-semibold mb-4 text-indigo-600">Activity Calendar</h2>
-            <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-2xl font-semibold mb-4 text-indigo-600">Activity Calendars</h2>
+            
+            {/* All Platforms Calendar */}
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold mb-4 text-gray-700">All Platforms</h3>
               <ConsistencyCalendar 
                 username={userData.username} 
                 showSync={true}
+                platform="all"
+              />
+            </div>
+            
+            {/* GitHub Calendar */}
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold mb-4 text-green-700">GitHub</h3>
+              <ConsistencyCalendar 
+                username={userData.username} 
+                showSync={true}
+                platform="github"
+              />
+            </div>
+            
+            {/* Twitter Calendar */}
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold mb-4 text-blue-700">Twitter</h3>
+              <ConsistencyCalendar 
+                username={userData.username} 
+                showSync={true}
+                platform="twitter"
+              />
+            </div>
+            
+            {/* Instagram Calendar */}
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold mb-4 text-pink-700">Instagram</h3>
+              <ConsistencyCalendar 
+                username={userData.username} 
+                showSync={true}
+                platform="instagram"
+              />
+            </div>
+            
+            {/* YouTube Calendar */}
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold mb-4 text-red-700">YouTube</h3>
+              <ConsistencyCalendar 
+                username={userData.username} 
+                showSync={true}
+                platform="youtube"
               />
             </div>
             
             <div className="mt-4 bg-indigo-50 p-4 rounded-lg text-sm text-gray-700">
-              <h3 className="font-semibold text-indigo-700 mb-2">About Your Consistency Calendar</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">About Your Consistency Calendars</h3>
               <p className="mb-2">
-                This calendar tracks your activities across multiple platforms:
+                These calendars track your activities across multiple platforms:
               </p>
               <ul className="list-disc pl-5 mb-2 space-y-1">
-                <li>GitHub contributions</li>
-                <li>Twitter posts</li>
-                <li>Instagram content</li>
-                <li>YouTube videos</li>
+                <li><span className="text-green-700 font-medium">GitHub</span> contributions</li>
+                <li><span className="text-blue-700 font-medium">Twitter</span> posts</li>
+                <li><span className="text-pink-700 font-medium">Instagram</span> content</li>
+                <li><span className="text-red-700 font-medium">YouTube</span> videos</li>
               </ul>
               <p>
                 Use the sync buttons to update your data. Click on any day to see detailed activity information.
