@@ -21,21 +21,47 @@ function formatDate(date: Date): string {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get the currently logged in user
-    const user = await getLoggedInUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required. Please log in.' }, 
-        { status: 401 }
-      )
-    }
-
     // Get request data
-    const requestData = await request.json()
-    const { date } = requestData
+    const requestData = await request.json().catch(() => ({}))
+    const { date, userId } = requestData
     
-    // Hard-coded channel ID for now as specified
-    const channelId = "UCbRP3c757lWg9M-U7TyEkXA"
+    let user;
+    
+    // If userId is provided, this is a request from the cron job
+    // Otherwise, get the currently logged in user
+    if (userId) {
+      // Check if this is a cron job request with the proper authorization
+      const authHeader = request.headers.get('Authorization')
+      const cronSecret = process.env.CRON_SECRET
+      
+      if (!cronSecret) {
+        console.error('CRON_SECRET environment variable is not set')
+        return NextResponse.json(
+          { error: 'Server configuration error: CRON_SECRET is not configured.' }, 
+          { status: 500 }
+        )
+      }
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== cronSecret) {
+        console.error('Unauthorized attempt to access YouTube API with userId')
+        return NextResponse.json(
+          { error: 'Unauthorized. Cron secret required for userId parameter.' }, 
+          { status: 401 }
+        )
+      }
+      
+      // Use the provided userId
+      user = { id: userId }
+    } else {
+      // Get the currently logged in user
+      user = await getLoggedInUser()
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Authentication required. Please log in.' }, 
+          { status: 401 }
+        )
+      }
+    }
     
     // Parse date or use current date if not provided
     const targetDate = date ? parseISO(date) : new Date()
@@ -64,7 +90,31 @@ export async function POST(request: NextRequest) {
 
     try {
       // Fetch YouTube data directly using the YouTube API
-      const platformData = await fetchYouTubeData(channelId, targetDate)
+      // Get YouTube username from user data, removing @ if present
+      const youtubeUsernameOrHandle = userData.youtube_username || "";
+      
+      if (!youtubeUsernameOrHandle) {
+        // For cron job requests, return a clean response that can be handled gracefully
+        if (userId) {
+          return NextResponse.json({
+            message: 'Skipped YouTube sync - no username configured',
+            date: formattedDate,
+            data: {
+              video_count: 0,
+              video_urls: [],
+              videos: []
+            }
+          });
+        }
+        
+        // For regular user requests, show an error
+        return NextResponse.json(
+          { error: 'YouTube username not found in your profile. Please add your YouTube username first.' },
+          { status: 400 }
+        );
+      }
+      
+      const platformData = await fetchYouTubeData(youtubeUsernameOrHandle, targetDate)
       
       // Update or insert activity data in the database
       await executeWithRetry(async () => {
@@ -137,85 +187,149 @@ export async function POST(request: NextRequest) {
 
 /**
  * Fetch YouTube data directly using the YouTube Data API
- * @param channelId The YouTube channel ID to fetch data for
+ * @param usernameOrHandle The YouTube username/handle to fetch data for
  * @param date The target date
  * @returns Formatted YouTube data
  */
-async function fetchYouTubeData(channelId: string, date: Date) {
+async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
   const apiKey = process.env.YOUTUBE_API_KEY
   if (!apiKey) {
     throw new Error('YouTube API key not configured')
   }
   
   const formattedDate = formatDate(date)
-  console.log(`Fetching YouTube data for channel ID: ${channelId}, date: ${formattedDate}`)
+  console.log(`Fetching YouTube data for username/handle: ${usernameOrHandle}, date: ${formattedDate}`)
   
-  // Calculate the time range for the published date
+  // Step 1: Get the channel ID from the username/handle
+  let channelId
+  
+  if (usernameOrHandle.startsWith('UC')) {
+    // It's already a channel ID
+    channelId = usernameOrHandle
+    console.log(`Using provided channel ID: ${channelId}`)
+  } else {
+    // Try to get channel ID from handle
+    const handle = usernameOrHandle.startsWith('@') ? usernameOrHandle : `@${usernameOrHandle}`
+    console.log(`Looking up channel ID for handle: ${handle}`)
+    
+    try {
+      const handleLookupUrl = `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${handle}&key=${apiKey}`
+      const response = await fetch(handleLookupUrl)
+      console.log(`YouTube API response status: ${response.status}`)
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText)
+        console.error(`YouTube API error looking up channel by handle (${response.status}): ${errorText}`)
+        throw new Error(`YouTube API error looking up channel by handle: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      
+      if (!data.items || data.items.length === 0) {
+        // Try alternative lookup by username if handle lookup fails
+        console.log(`No channel found for handle ${handle}, trying forUsername lookup`)
+        const username = usernameOrHandle.replace('@', '')
+        const usernameLookupUrl = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${apiKey}`
+        
+        try {
+          const usernameResponse = await fetch(usernameLookupUrl)
+          
+          if (!usernameResponse.ok) {
+            const errorText = await usernameResponse.text().catch(() => usernameResponse.statusText)
+            console.error(`YouTube API error looking up channel by username (${usernameResponse.status}): ${errorText}`)
+            throw new Error(`YouTube API error looking up channel by username: ${usernameResponse.statusText}`)
+          }
+          
+          const usernameData = await usernameResponse.json()
+          
+          if (!usernameData.items || usernameData.items.length === 0) {
+            // As a last resort, try a search
+            console.log(`No channel found for username ${username}, trying search`)
+            const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(username)}&type=channel&maxResults=1&key=${apiKey}`
+            
+            const searchResponse = await fetch(searchUrl)
+            
+            if (!searchResponse.ok) {
+              throw new Error(`YouTube API error searching for channel: ${searchResponse.statusText}`)
+            }
+            
+            const searchData = await searchResponse.json()
+            
+            if (!searchData.items || searchData.items.length === 0) {
+              throw new Error(`No YouTube channel found for ${usernameOrHandle}`)
+            }
+            
+            channelId = searchData.items[0].id.channelId
+            console.log(`Found channel ID ${channelId} through search`)
+          } else {
+            channelId = usernameData.items[0].id
+          }
+        } catch (error) {
+          console.error('Error looking up YouTube channel by username:', error)
+          throw error
+        }
+      } else {
+        channelId = data.items[0].id
+      }
+    } catch (error) {
+      console.error('Error looking up YouTube channel:', error)
+      throw new Error(`Failed to get YouTube channel ID for ${usernameOrHandle}: ${error}`)
+    }
+  }
+  
+  console.log(`Found YouTube channel ID: ${channelId}`)
+  
+  // Step 2: Get the videos from the channel
+  console.log(`Fetching videos for YouTube channel ID: ${channelId}`)
+  
+  // Step 2: Calculate the time range for the published date
   const targetDate = new Date(formattedDate)
   const nextDay = new Date(targetDate)
   nextDay.setDate(nextDay.getDate() + 1)
-  
+   
   // Format dates for YouTube API (RFC 3339 format)
   const publishedAfter = targetDate.toISOString()
   const publishedBefore = nextDay.toISOString()
   
-  // Fetch videos published by the channel within the date range
-  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&publishedAfter=${publishedAfter}&publishedBefore=${publishedBefore}&type=video&maxResults=50&order=date&key=${apiKey}`
+  // Step 3: Fetch videos published by the channel within the date range
+  const videoUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&publishedAfter=${publishedAfter}&publishedBefore=${publishedBefore}&type=video&maxResults=50&order=date&key=${apiKey}`
   
   try {
-    const response = await fetch(searchUrl)
+    const videoResponse = await fetch(videoUrl)
     
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => response.statusText)
-      console.error(`YouTube API error (${response.status}): ${errorText}`)
-      throw new Error(`YouTube API error: ${response.statusText}`)
+    if (!videoResponse.ok) {
+      const errorText = await videoResponse.text().catch(() => videoResponse.statusText)
+      console.error(`YouTube API error fetching videos (${videoResponse.status}): ${errorText}`)
+      throw new Error(`YouTube API error fetching videos: ${videoResponse.statusText}`)
     }
     
-    const data = await response.json()
-    console.log(`Retrieved ${data.items?.length || 0} videos from YouTube API`)
+    const videoData = await videoResponse.json()
     
-    // If we have videos, get additional details for each video
-    const videoItems = []
-    
-    if (data.items && data.items.length > 0) {
-      // Get video IDs
-      const videoIds = data.items.map((item: any) => item.id.videoId).join(',')
+    // Map video items to our expected format
+    const videos = videoData.items?.map((item: any) => {
+      const videoId = item.id.videoId
+      const url = `https://www.youtube.com/watch?v=${videoId}`
+      const publishedDate = new Date(item.snippet.publishedAt)
       
-      // Fetch detailed video information
-      const videoDetailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${apiKey}`
-      const detailsResponse = await fetch(videoDetailsUrl)
-      
-      if (!detailsResponse.ok) {
-        const errorText = await detailsResponse.text().catch(() => detailsResponse.statusText)
-        console.error(`YouTube API error fetching video details (${detailsResponse.status}): ${errorText}`)
-        throw new Error(`YouTube API error fetching video details: ${detailsResponse.statusText}`)
+      return {
+        url,
+        title: item.snippet.title,
+        published_at: publishedDate.toISOString(),
+        description: item.snippet.description,
+        thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
       }
-      
-      const detailsData = await detailsResponse.json()
-      
-      // Format video data
-      if (detailsData.items && detailsData.items.length > 0) {
-        for (const item of detailsData.items) {
-          videoItems.push({
-            id: item.id,
-            title: item.snippet.title,
-            url: `https://www.youtube.com/watch?v=${item.id}`,
-            timestamp: item.snippet.publishedAt,
-            views: parseInt(item.statistics.viewCount || '0', 10),
-            likes: parseInt(item.statistics.likeCount || '0', 10)
-          })
-        }
-      }
-    }
+    }) || []
     
-    // Return formatted YouTube data
+    // Extract just the URLs
+    const videoUrls = videos.map((video: any) => video.url)
+    
     return {
-      video_count: videoItems.length,
-      video_urls: videoItems.map(v => v.url),
-      videos: videoItems
+      video_count: videos.length,
+      video_urls: videoUrls,
+      videos,
     }
   } catch (error) {
-    console.error('Error fetching YouTube data:', error)
+    console.error('Error fetching YouTube videos:', error)
     throw error
   }
 }
