@@ -17,6 +17,7 @@ import CalendarGrid from '@/components/CalendarGrid'
 import CalendarLegend from '@/components/CalendarLegend'
 import SyncControls from '@/components/SyncControls'
 import CalendarHeader from '@/components/CalendarHeader'
+import PrivacyControls from '@/components/PrivacyControls'
 
 interface ActivityData {
   date: string
@@ -30,6 +31,7 @@ interface ActivityData {
 interface ConsistencyCalendarProps {
   username: string
   showSync?: boolean
+  showPrivacyControls?: boolean
   platform?: 'github' | 'twitter' | 'instagram' | 'youtube' | 'all'
 }
 
@@ -37,7 +39,12 @@ interface ConsistencyCalendarProps {
  * Component that displays a GitHub-style contributions calendar
  * Shows activity across platforms and allows viewing details
  */
-export default function ConsistencyCalendar({ username, showSync = false, platform = 'all' }: ConsistencyCalendarProps) {
+export default function ConsistencyCalendar({ 
+  username, 
+  showSync = false, 
+  showPrivacyControls = false,
+  platform = 'all' 
+}: ConsistencyCalendarProps) {
   const [activities, setActivities] = useState<ActivityData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -443,6 +450,14 @@ export default function ConsistencyCalendar({ username, showSync = false, platfo
         yearOffset={yearOffset}
         changeYear={changeYear}
       />
+      
+      {/* Privacy Controls */}
+      {showPrivacyControls && (
+        <PrivacyControls
+          username={username}
+          platform={platform}
+        />
+      )}
       
       {/* Sync Controls */}
       {showSync && (
