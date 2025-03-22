@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { format, isSameDay, isAfter } from 'date-fns'
+import { format, isSameDay } from 'date-fns'
 
 /**
  * Component that renders the actual calendar grid with months, days, and activity squares
