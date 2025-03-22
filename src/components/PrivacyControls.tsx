@@ -75,7 +75,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
             setPrivacySettings(privacy);
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching privacy settings:', err)
         setError('Failed to load privacy settings')
       } finally {
@@ -137,9 +137,9 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
       }
       
       console.log(`${platformName} privacy setting updated successfully:`, responseData);
-    } catch (err: any) {
-      console.error('Error updating privacy setting:', err)
-      setError(`Failed to update ${platformName} privacy setting: ${err.message}`)
+    } catch (err: unknown) {
+      console.error('Error updating privacy settings:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update privacy settings')
       
       // Error message will auto-clear after 5 seconds
       setTimeout(() => setError(null), 5000)
