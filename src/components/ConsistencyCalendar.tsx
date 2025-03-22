@@ -132,7 +132,6 @@ export default function ConsistencyCalendar({
       setError(null);
       
       try {
-        controller = new AbortController();
         
         console.log(`Fetching activities for ${username} from ${dateRange.formattedStartDate} to ${dateRange.formattedEndDate}`);
         
@@ -147,7 +146,7 @@ export default function ConsistencyCalendar({
           url.searchParams.append('isPublicView', 'true');
         }
         
-        const response = await fetch(url.toString(), { signal: controller.signal });
+        const response = await fetch(url.toString());
         
         if (!isMounted) return;
         
