@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { format } from 'date-fns'
 import { enqueueAllUsersSync, processTasks, cleanupOldTasks } from '@/lib/queue'
 
 /**
@@ -81,11 +80,12 @@ export async function POST(request: Request) {
         tasks_cleaned: cleanedTasks
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in sync-all cron job:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ 
       success: false, 
-      error: error.message || 'Unknown error' 
+      error: errorMessage 
     }, { status: 500 })
   }
 } 
