@@ -191,7 +191,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
               }}>{platform.charAt(0).toUpperCase() + platform.slice(1)}:</span> {getPrivacyLabel(platform)}
           </div>
           <Switch 
-            checked={privacySettings[`${platform}_private` as keyof typeof privacySettings]}
+            checked={!privacySettings[`${platform}_private` as keyof typeof privacySettings]}
             onCheckedChange={() => togglePrivacy(platform)}
             className={
               platform === 'github' ? 'data-[state=checked]:bg-green-600' : 
@@ -208,10 +208,10 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
   // Otherwise show all platform toggles (for "all" view)
   return (
     <div className="flex flex-col space-y-2 mb-4">
-      <h3 className="text-sm font-medium text-gray-300">Privacy Settings</h3>
+      <h3 className="text-sm font-medium text-gray-700">Privacy Settings</h3>
       
       {error && (
-        <div className="bg-red-900 text-white p-2 mb-2 rounded text-xs">
+        <div className="bg-red-100 text-red-700 p-2 mb-2 rounded text-xs border border-red-300">
           {error}
         </div>
       )}
@@ -223,7 +223,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
             <span className="font-medium text-green-700">GitHub:</span> {getPrivacyLabel('github')}
           </div>
           <Switch 
-            checked={privacySettings.github_private}
+            checked={!privacySettings.github_private}
             onCheckedChange={() => togglePrivacy('github')}
             className="data-[state=checked]:bg-green-600"
           />
@@ -235,7 +235,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
             <span className="font-medium text-blue-700">Twitter:</span> {getPrivacyLabel('twitter')}
           </div>
           <Switch 
-            checked={privacySettings.twitter_private}
+            checked={!privacySettings.twitter_private}
             onCheckedChange={() => togglePrivacy('twitter')}
             className="data-[state=checked]:bg-blue-600"
           />
@@ -247,7 +247,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
             <span className="font-medium text-red-700">YouTube:</span> {getPrivacyLabel('youtube')}
           </div>
           <Switch 
-            checked={privacySettings.youtube_private}
+            checked={!privacySettings.youtube_private}
             onCheckedChange={() => togglePrivacy('youtube')}
             className="data-[state=checked]:bg-red-600"
           />
@@ -259,7 +259,7 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
             <span className="font-medium text-pink-700">Instagram:</span> {getPrivacyLabel('instagram')}
           </div>
           <Switch 
-            checked={privacySettings.instagram_private}
+            checked={!privacySettings.instagram_private}
             onCheckedChange={() => togglePrivacy('instagram')}
             className="data-[state=checked]:bg-pink-600"
           />
