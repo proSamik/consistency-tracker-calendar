@@ -36,9 +36,26 @@ npm install
 
 4. Create a `.env` file in the root directory with your Supabase credentials:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+# Database URL for Postgres
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/consistency_tracker (public database url)
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# API Keys for third-party services
+GITHUB_TOKEN=your-github-personal-access-token
+APIFY_TOKEN=your-apify-api-token
+
+# YouTube API Key
+YOUTUBE_API_KEY=your-youtube-api-key
+
+# Host configuration
+NEXT_PUBLIC_HOST=your-public-host-url
+
+# Cron Secret Key
+CRON_SECRET=your-cron-secret-key-here
+
 ```
 
 5. Database Setup:
