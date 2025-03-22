@@ -40,11 +40,11 @@ export default function CalendarGrid({
         Swipe left/right to view full calendar
       </div>
       <div className="overflow-x-auto -mx-4 px-4">
-        <div className="min-w-[768px] grid grid-cols-[auto_1fr] gap-2">
+        <div className="min-w-[768px] grid grid-cols-[auto_1fr] gap-3 bg-white p-4 rounded-lg">
           {/* Month labels */}
           <div className="col-start-2 flex">
             {months.map((month, i) => (
-              <div key={i} className="flex-1 text-center text-xs text-gray-400">
+              <div key={i} className="flex-1 text-center text-xs text-gray-600">
                 {month.name}
               </div>
             ))}
@@ -52,14 +52,14 @@ export default function CalendarGrid({
           
           {/* Day labels and cells */}
           <div className="flex flex-col justify-around h-full py-1">
-            <div className="text-xs text-gray-400">Mon</div>
-            <div className="text-xs text-gray-400">Wed</div>
-            <div className="text-xs text-gray-400">Fri</div>
+            <div className="text-xs text-gray-600">Mon</div>
+            <div className="text-xs text-gray-600">Wed</div>
+            <div className="text-xs text-gray-600">Fri</div>
           </div>
           
-          <div className="grid grid-cols-52 gap-1">
+          <div className="grid grid-cols-52 gap-x-4 gap-y-3">
             {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-1">
+              <div key={weekIndex} className="flex flex-col gap-3">
                 {week.map((day, dayIndex) => {
                   // Find activity for this day if any
                   const activity = filteredActivities.find(a => {
@@ -70,7 +70,7 @@ export default function CalendarGrid({
                   
                   // Skip days outside our target year
                   if (day.getFullYear() !== dateRange.startDate.getFullYear()) {
-                    return <div key={dayIndex} className="w-5 h-5"></div>
+                    return <div key={dayIndex} className="w-6 h-6"></div>
                   }
                   
                   const count = activity ? activity.count : 0
@@ -79,7 +79,7 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={dayIndex}
-                      className={`w-5 h-5 rounded-sm ${colorClass} cursor-pointer hover:opacity-80 transition-opacity`}
+                      className={`w-6 h-6 rounded-md ${colorClass} cursor-pointer hover:opacity-100 hover:shadow-md hover:shadow-gray-400/30 transform hover:scale-105 transition-all duration-150`}
                       title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
                       onClick={() => handleDayClick(day)}
                     ></div>
