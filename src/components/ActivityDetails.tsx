@@ -204,16 +204,16 @@ export default function ActivityDetails({
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-lg shadow-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto border border-gray-200">
         <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-white">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-800">
               {formattedDate}
               {platformFilter && ` - ${platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}`}
             </h3>
             <button
               onClick={onClose}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded flex items-center space-x-1"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg flex items-center space-x-1 transition-colors"
               aria-label="Close"
             >
               <span>Close</span>
@@ -224,24 +224,24 @@ export default function ActivityDetails({
           </div>
           
           {error && (
-            <div className="bg-red-900 text-white p-2 mb-4 rounded">
+            <div className="bg-red-100 text-red-700 p-3 mb-4 rounded-lg border border-red-300">
               {error}
             </div>
           )}
           
           {loading ? (
             <div className="h-64 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
             </div>
           ) : (
             <div className="space-y-6">
               {/* Total contributions */}
               {!platformFilter && (
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <h4 className="text-lg font-medium text-white mb-2">
+                <div className="bg-gray-100 p-5 rounded-lg border border-gray-200 shadow-sm">
+                  <h4 className="text-lg font-medium text-gray-800 mb-2">
                     {activityData?.totalCount || 0} total contributions
                   </h4>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Last synced: {activityData?.lastSynced 
                       ? format(new Date(activityData.lastSynced), 'MMM d, yyyy h:mm a') 
                       : 'Never'}
@@ -251,19 +251,19 @@ export default function ActivityDetails({
               
               {/* GitHub */}
               {shouldShowPlatform('github') && (
-                <div className="bg-gray-800 p-4 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-green-200 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-medium text-green-400">
+                    <h4 className="text-lg font-medium text-green-700">
                       GitHub: {activityData?.github.contributions || 0} contributions
                     </h4>
                     {canSync && (
                       <button
                         onClick={() => syncPlatform('github')}
                         disabled={syncing}
-                        className={`text-xs px-2 py-1 rounded ${
+                        className={`text-xs px-3 py-1.5 rounded-lg text-white ${
                           syncing
-                            ? 'bg-gray-700 cursor-not-allowed'
-                            : 'bg-green-700 hover:bg-green-600'
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-green-600 hover:bg-green-700 shadow-sm transition-colors'
                         }`}
                       >
                         {syncing ? 'Syncing...' : 'Sync'}
@@ -272,29 +272,29 @@ export default function ActivityDetails({
                   </div>
                   
                   {isPlatformPrivate('github') ? (
-                    <div className="bg-gray-700 p-3 rounded text-center text-gray-300">
+                    <div className="bg-gray-100 p-3 rounded-lg text-center text-gray-700 border border-gray-200">
                       <p>This user has made their GitHub activity private.</p>
                     </div>
                   ) : activityData?.github.repositories.length ? (
-                    <div className="space-y-2 mt-2">
+                    <div className="space-y-2 mt-3">
                       {activityData.github.repositories.map((repo, i) => (
-                        <div key={i} className="flex justify-between items-center text-sm bg-gray-700 p-2 rounded">
+                        <div key={i} className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
                           <a 
                             href={repo.url}
                             target="_blank"
                             rel="noopener noreferrer" 
-                            className="text-blue-400 hover:underline truncate mr-2"
+                            className="text-blue-600 hover:underline truncate mr-2"
                           >
                             {repo.nameWithOwner}
                           </a>
-                          <span className="text-green-400 whitespace-nowrap">
+                          <span className="text-green-700 whitespace-nowrap">
                             {repo.contributions} commits
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-400 mt-2">
+                    <div className="text-sm text-gray-600 mt-2">
                       No GitHub activity on this date.
                     </div>
                   )}
@@ -303,19 +303,19 @@ export default function ActivityDetails({
               
               {/* Twitter */}
               {shouldShowPlatform('twitter') && (
-                <div className="bg-gray-800 p-4 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-blue-200 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-medium text-blue-400">
+                    <h4 className="text-lg font-medium text-blue-700">
                       Twitter: {activityData?.twitter.tweet_count || 0} tweets
                     </h4>
                     {canSync && (
                       <button
                         onClick={() => syncPlatform('twitter')}
                         disabled={syncing}
-                        className={`text-xs px-2 py-1 rounded ${
+                        className={`text-xs px-3 py-1.5 rounded-lg text-white ${
                           syncing
-                            ? 'bg-gray-700 cursor-not-allowed'
-                            : 'bg-blue-700 hover:bg-blue-600'
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors'
                         }`}
                       >
                         {syncing ? 'Syncing...' : 'Sync'}
@@ -324,15 +324,15 @@ export default function ActivityDetails({
                   </div>
                   
                   {isPlatformPrivate('twitter') ? (
-                    <div className="bg-gray-700 p-3 rounded text-center text-gray-300">
+                    <div className="bg-gray-100 p-3 rounded-lg text-center text-gray-700 border border-gray-200">
                       <p>This user has made their Twitter activity private.</p>
                     </div>
                   ) : activityData?.twitter.tweets?.length ? (
-                    <div className="space-y-3 mt-2">
+                    <div className="space-y-3 mt-3">
                       {activityData.twitter.tweets.map((tweet, i) => (
-                        <div key={i} className="bg-gray-700 p-3 rounded text-sm">
-                          <p className="text-gray-200 mb-2">{tweet.text}</p>
-                          <div className="flex justify-between items-center text-xs text-gray-400">
+                        <div key={i} className="bg-gray-50 p-3 rounded-lg text-sm border border-gray-200">
+                          <p className="text-gray-800 mb-2">{tweet.text}</p>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
                             <span>{tweet.timestamp ? format(new Date(tweet.timestamp), 'h:mm a') : ''}</span>
                             <div className="flex space-x-3">
                               <span>{tweet.likes} likes</span>
@@ -341,7 +341,7 @@ export default function ActivityDetails({
                                 href={tweet.url}
                                 target="_blank"
                                 rel="noopener noreferrer" 
-                                className="text-blue-400 hover:underline"
+                                className="text-blue-600 hover:underline"
                               >
                                 View
                               </a>
@@ -351,7 +351,7 @@ export default function ActivityDetails({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-400 mt-2">
+                    <div className="text-sm text-gray-600 mt-2">
                       No Twitter activity on this date.
                     </div>
                   )}
@@ -360,19 +360,19 @@ export default function ActivityDetails({
               
               {/* Instagram */}
               {shouldShowPlatform('instagram') && (
-                <div className="bg-gray-800 p-4 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-pink-200 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-medium text-pink-400">
+                    <h4 className="text-lg font-medium text-pink-700">
                       Instagram: {activityData?.instagram.post_count || 0} posts
                     </h4>
                     {canSync && (
                       <button
                         onClick={() => syncPlatform('instagram')}
                         disabled={syncing}
-                        className={`text-xs px-2 py-1 rounded ${
+                        className={`text-xs px-3 py-1.5 rounded-lg text-white ${
                           syncing
-                            ? 'bg-gray-700 cursor-not-allowed'
-                            : 'bg-pink-700 hover:bg-pink-600'
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-pink-600 hover:bg-pink-700 shadow-sm transition-colors'
                         }`}
                       >
                         {syncing ? 'Syncing...' : 'Sync'}
@@ -381,15 +381,15 @@ export default function ActivityDetails({
                   </div>
                   
                   {isPlatformPrivate('instagram') ? (
-                    <div className="bg-gray-700 p-3 rounded text-center text-gray-300">
+                    <div className="bg-gray-100 p-3 rounded-lg text-center text-gray-700 border border-gray-200">
                       <p>This user has made their Instagram activity private.</p>
                     </div>
                   ) : activityData?.instagram.posts?.length ? (
-                    <div className="space-y-3 mt-2">
+                    <div className="space-y-3 mt-3">
                       {activityData.instagram.posts.map((post, i) => (
-                        <div key={i} className="bg-gray-700 p-3 rounded text-sm">
-                          <p className="text-gray-200 mb-2">{post.caption}</p>
-                          <div className="flex justify-between items-center text-xs text-gray-400">
+                        <div key={i} className="bg-gray-50 p-3 rounded-lg text-sm border border-gray-200">
+                          <p className="text-gray-800 mb-2">{post.caption}</p>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
                             <span>{post.timestamp ? format(new Date(post.timestamp), 'h:mm a') : ''}</span>
                             <div className="flex space-x-3">
                               <span>{post.likes} likes</span>
@@ -398,7 +398,7 @@ export default function ActivityDetails({
                                 href={post.url}
                                 target="_blank"
                                 rel="noopener noreferrer" 
-                                className="text-pink-400 hover:underline"
+                                className="text-pink-600 hover:underline"
                               >
                                 View {post.type}
                               </a>
@@ -408,7 +408,7 @@ export default function ActivityDetails({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-400 mt-2">
+                    <div className="text-sm text-gray-600 mt-2">
                       No Instagram activity on this date.
                     </div>
                   )}
@@ -417,19 +417,19 @@ export default function ActivityDetails({
               
               {/* YouTube */}
               {shouldShowPlatform('youtube') && (
-                <div className="bg-gray-800 p-4 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-red-200 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-medium text-red-400">
+                    <h4 className="text-lg font-medium text-red-700">
                       YouTube: {activityData?.youtube.video_count || 0} videos
                     </h4>
                     {canSync && (
                       <button
                         onClick={() => syncPlatform('youtube')}
                         disabled={syncing}
-                        className={`text-xs px-2 py-1 rounded ${
+                        className={`text-xs px-3 py-1.5 rounded-lg text-white ${
                           syncing
-                            ? 'bg-gray-700 cursor-not-allowed'
-                            : 'bg-red-700 hover:bg-red-600'
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-red-600 hover:bg-red-700 shadow-sm transition-colors'
                         }`}
                       >
                         {syncing ? 'Syncing...' : 'Sync'}
@@ -438,15 +438,15 @@ export default function ActivityDetails({
                   </div>
                   
                   {isPlatformPrivate('youtube') ? (
-                    <div className="bg-gray-700 p-3 rounded text-center text-gray-300">
+                    <div className="bg-gray-100 p-3 rounded-lg text-center text-gray-700 border border-gray-200">
                       <p>This user has made their YouTube activity private.</p>
                     </div>
                   ) : activityData?.youtube.videos?.length ? (
-                    <div className="space-y-3 mt-2">
+                    <div className="space-y-3 mt-3">
                       {activityData.youtube.videos.map((video, i) => (
-                        <div key={i} className="bg-gray-700 p-3 rounded text-sm">
-                          <p className="text-gray-200 font-medium mb-1">{video.title}</p>
-                          <div className="flex justify-between items-center text-xs text-gray-400">
+                        <div key={i} className="bg-gray-50 p-3 rounded-lg text-sm border border-gray-200">
+                          <p className="text-gray-800 font-medium mb-1">{video.title}</p>
+                          <div className="flex justify-between items-center text-xs text-gray-600">
                             <span>{video.timestamp ? format(new Date(video.timestamp), 'h:mm a') : ''}</span>
                             <div className="flex space-x-3">
                               <span>{video.views} views</span>
@@ -455,7 +455,7 @@ export default function ActivityDetails({
                                 href={video.url}
                                 target="_blank"
                                 rel="noopener noreferrer" 
-                                className="text-red-400 hover:underline"
+                                className="text-red-600 hover:underline"
                               >
                                 Watch
                               </a>
@@ -465,7 +465,7 @@ export default function ActivityDetails({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-400 mt-2">
+                    <div className="text-sm text-gray-600 mt-2">
                       No YouTube activity on this date.
                     </div>
                   )}
