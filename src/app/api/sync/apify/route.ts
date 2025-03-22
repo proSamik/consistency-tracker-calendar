@@ -14,30 +14,6 @@ function formatDate(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
 
-/**
- * Parse date from Twitter's format and adjust to user timezone
- * @param twitterDateString Date string in Twitter format
- * @param userTimezoneOffsetMinutes User's timezone offset in minutes
- * @returns Date object adjusted to user timezone
- */
-function parseTwitterDate(twitterDateString: string, userTimezoneOffsetMinutes: number = 0): Date {
-  // Twitter date format: "Fri Mar 21 20:33:52 +0000 2025"
-  const date = new Date(twitterDateString);
-  
-  // Twitter dates are in UTC (+0000), so we need to adjust them to the user's timezone
-  // getTimezoneOffset() returns the difference in minutes between UTC and local time
-  // We need to apply the user's offset to get the correct local date
-  
-  // Only adjust if we have a valid offset (since getTimezoneOffset is negative when east of UTC)
-  if (userTimezoneOffsetMinutes !== 0) {
-    // Create a date in the user's timezone by considering their offset
-    const userLocalDate = new Date(date.getTime() - (userTimezoneOffsetMinutes * 60000));
-    return userLocalDate;
-  }
-  
-  return date;
-}
-
 // Type guard for platform string
 function isPlatform(value: string): value is 'twitter' | 'instagram' {
   return ['twitter', 'instagram'].includes(value);
@@ -550,12 +526,11 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
         // Handle potential nested structures (Instagram API has changed formats several times)
         const node = item.node || item
         
-        // Get the original UTC timestamp
-        let timestamp = node.timestamp || 
+        // Store both the original UTC timestamp and the local timestamp
+        const timestamp = node.timestamp || 
                      (node.taken_at_timestamp ? new Date(node.taken_at_timestamp * 1000).toISOString() : null) || 
                      new Date().toISOString();
         
-        // Store both the original UTC timestamp and the local timestamp
         const utcDate = new Date(timestamp);
         const localDate = new Date(utcDate.getTime() - (userTimezoneOffsetMinutes * 60000));
         
