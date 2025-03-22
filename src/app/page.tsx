@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 
 /**
  * Home page that showcases the consistency calendar app features
