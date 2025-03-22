@@ -116,44 +116,61 @@ export default function ConsistencyCalendar({
     return { months: monthsArray, weeks: weeksArray }
   }, [dateRange.startDate, dateRange.endDate])
 
-  // Fetch activities data with stronger dependency control
+  // Fetch activities data with a more reliable pattern
   useEffect(() => {
-    let isMounted = true;
-    let controller: AbortController | null = new AbortController();
+    // Don't fetch if username is missing
+    if (!username) return;
     
-    async function fetchActivities() {
-      if (!username) return;
-      
-      // Don't reload if already loading - prevents multiple simultaneous requests
-      // But make sure we don't skip the initial load
-      if (loading && controller && activities.length > 0) return;
-      
+    let isMounted = true;
+    const controller = new AbortController();
+    
+    // Reset error state
+    setError(null);
+    
+    // Create a promise-based fetch function that won't be interrupted
+    const fetchData = async () => {
+      // Set loading state at the very beginning
       setLoading(true);
-      setError(null);
       
       try {
-        
         console.log(`Fetching activities for ${username} from ${dateRange.formattedStartDate} to ${dateRange.formattedEndDate}`);
         
+        // Build URL with all parameters
         const url = new URL(`/api/activities`, window.location.origin);
         url.searchParams.append('username', username);
         url.searchParams.append('start', dateRange.formattedStartDate);
         url.searchParams.append('end', dateRange.formattedEndDate);
-        url.searchParams.append('_', Date.now().toString());
+        url.searchParams.append('cache', refreshKey.toString()); // Use refreshKey as cache buster
         
         // Add public view flag to respect privacy settings
         if (isPublicView) {
           url.searchParams.append('isPublicView', 'true');
         }
         
-        const response = await fetch(url.toString());
+        // Use a fetch with timeout to prevent hanging requests
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
+        });
+        
+        // Start the fetch with the abort controller
+        const fetchPromise = fetch(url.toString(), {
+          signal: controller.signal,
+          // Ensure we're not using cached responses
+          cache: 'no-store',
+          headers: {
+            'pragma': 'no-cache',
+            'cache-control': 'no-cache'
+          }
+        });
+        
+        // Race between fetch and timeout
+        const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
         
         if (!isMounted) return;
         
         if (response.status === 401) {
           console.log('User not authenticated for activities. This is expected for public profiles.');
           setActivities([]);
-          setLoading(false);
           return;
         }
         
@@ -163,8 +180,15 @@ export default function ConsistencyCalendar({
         
         const data = await response.json();
         console.log('Loaded activities:', data);
-        setActivities(data.activities || []);
+        
+        if (isMounted) {
+          // Only update state if component is still mounted
+          setActivities(data.activities || []);
+        }
       } catch (err: unknown) {
+        // Only set error if component is still mounted
+        if (!isMounted) return;
+        
         // Don't set error state if the request was aborted
         if (err instanceof Error && err.name === 'AbortError') {
           console.log('Activities fetch aborted');
@@ -174,21 +198,39 @@ export default function ConsistencyCalendar({
         console.error('Error fetching activities:', err);
         setError('Failed to load activity data');
       } finally {
+        // Always clear loading state if component is still mounted
         if (isMounted) {
           setLoading(false);
-          controller = null;
         }
       }
-    }
+    };
     
-    // Call fetchActivities immediately
-    fetchActivities();
+    // Execute fetch immediately
+    fetchData();
     
+    // Cleanup function
     return () => {
       isMounted = false;
-      controller?.abort();
+      controller.abort();
     };
-  }, [dateRange, username, refreshKey, isPublicView, platform, loading, activities.length]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, refreshKey, isPublicView, platform]);
+
+  // Update refreshActivities to be more reliable
+  const refreshActivities = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      
+      // Force refresh by incrementing the refresh key
+      // This will trigger the useEffect above
+      setRefreshKey(prev => prev + 1);
+      
+      // No need to duplicate the fetch logic here - the useEffect will handle it
+    } catch (err: unknown) {
+      console.error('Error refreshing activities:', err);
+      setError('Failed to refresh activity data');
+      setLoading(false);
+    }
+  }, [setRefreshKey, setLoading, setError]);
 
   // Handle syncing activities for a specific platform with useCallback
   const syncPlatform = useCallback(async (syncPlatform: string) => {
@@ -327,36 +369,7 @@ export default function ConsistencyCalendar({
       }
       setSyncing(false);
     }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform, isPublicView, activities.length]);
-
-  /**
-   * Helper function to refresh activities data
-   */
-  const refreshActivities = useCallback(async (): Promise<void> => {
-    try {
-      setLoading(true);
-      
-      // Force refresh by incrementing the refresh key
-      setRefreshKey(prev => prev + 1);
-      
-      const activitiesResponse = await fetch(
-        `/api/activities?username=${username}&start=${dateRange.formattedStartDate}&end=${dateRange.formattedEndDate}&nocache=${Date.now()}`
-      );
-      
-      if (!activitiesResponse.ok) {
-        throw new Error('Failed to refresh activity data');
-      }
-      
-      const data = await activitiesResponse.json();
-      console.log('Refreshed activities data:', data);
-      setActivities(data.activities || []);
-    } catch (err: unknown) {
-      console.error('Error refreshing activities:', err);
-      setError('Failed to refresh activity data');
-    } finally {
-      setLoading(false);
-    }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, setRefreshKey, setLoading, setActivities, setError]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform, isPublicView, refreshActivities]);
 
   // Calculate color for a cell based on activity count and platform
   const getCellColor = (count: number) => {
