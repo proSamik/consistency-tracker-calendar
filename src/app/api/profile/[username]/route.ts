@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createDbClient, executeWithRetry } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -8,17 +8,16 @@ import { eq } from 'drizzle-orm'
  * This is used by the client-side profile page
  * 
  * @param request The incoming request object
- * @param params Contains dynamic route parameters
  * @returns JSON response with user data or error
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(
-  request: NextRequest,
-  context: { params: { username: string } }
+  request: Request,
 ) {
   try {
-    // Need to await params before accessing its properties in Next.js 15
-    const { username } = await context.params
+    // Extract username from URL path
+    const url = new URL(request.url)
+    const pathParts = url.pathname.split('/')
+    const username = pathParts[pathParts.length - 1]
     
     // Create database client
     const db = createDbClient()
