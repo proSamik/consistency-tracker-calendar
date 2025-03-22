@@ -3,16 +3,16 @@
  */
 
 /**
- * Schedule for running sync jobs every 6 hours
+ * Schedule for running sync jobs once a day
  * Times are in UTC
- * 00:00, 06:00, 12:00, 18:00
+ * 00:00
  */
-export const SYNC_SCHEDULE = '59 23 * * *'
+export const SYNC_SCHEDULE = '0 0 * * *'
 
 /**
  * Determines if the current time is within the allowed window to run a sync job
  * This helps prevent running the same job multiple times if the cron trigger fires late
- * @param targetHour The hour in UTC when the job should run (0, 6, 12, or 18)
+ * @param targetHour The hour in UTC when the job should run (0)
  * @returns boolean indicating if the job should run
  */
 export function isWithinSyncWindow(targetHour: number): boolean {
@@ -37,17 +37,13 @@ export function getNextSyncTime(): Date {
   const currentHour = now.getUTCHours()
   
   // Calculate hours until next sync
-  // Sync times are at hours 0, 6, 12, and 18
+  // Sync time is at hour 0
   let hoursUntilNextSync = 0
   
-  if (currentHour < 6) {
-    hoursUntilNextSync = 6 - currentHour
-  } else if (currentHour < 12) {
-    hoursUntilNextSync = 12 - currentHour
-  } else if (currentHour < 18) {
-    hoursUntilNextSync = 18 - currentHour
+  if (currentHour < 0) {
+    hoursUntilNextSync = 24 - currentHour
   } else {
-    // After 18:00, the next sync is at 00:00 the next day
+    // After 00:00, the next sync is at 00:00 the next day
     hoursUntilNextSync = 24 - currentHour
   }
   
