@@ -7,7 +7,7 @@
  * Times are in UTC
  * 00:00, 06:00, 12:00, 18:00
  */
-export const SYNC_SCHEDULE = '0 0,6,12,18 * * *'
+export const SYNC_SCHEDULE = '59 23 * * *'
 
 /**
  * Determines if the current time is within the allowed window to run a sync job
