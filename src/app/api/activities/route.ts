@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createDbClient, executeWithRetry } from '@/lib/db'
 import { activities, users } from '@/lib/db/schema'
-import { eq, and, between, desc, count, sum } from 'drizzle-orm'
-import { addDays, subDays, parseISO, format } from 'date-fns'
+import { eq, and, between, desc } from 'drizzle-orm'
+
+// Define interfaces for platform data
+interface GithubData {
+  contributions: number;
+  repositories: Record<string, unknown>[];
+}
+
+interface TwitterData {
+  tweet_count: number;
+  tweet_urls: string[];
+  tweets?: Record<string, unknown>[];
+}
+
+interface InstagramData {
+  post_count: number;
+  post_urls: string[];
+  posts?: Record<string, unknown>[];
+}
+
+interface YoutubeData {
+  video_count: number;
+  video_urls: string[];
+  videos?: Record<string, unknown>[];
+}
 
 /**
  * GET handler for /api/activities
@@ -32,14 +55,6 @@ export async function GET(request: NextRequest) {
   
   try {
     const db = createDbClient()
-    
-    // Get the user's privacy settings if in public view
-    let userPrivacy = {
-      github_private: false,
-      twitter_private: false,
-      instagram_private: false,
-      youtube_private: false
-    }
     
     if (isPublicView) {
       // Retrieve user data from the database
@@ -73,10 +88,10 @@ export async function GET(request: NextRequest) {
     // Process activities to respect privacy settings in public view
     const processedActivities = activityData.map(activity => {
       // Create base activity object with counts from JSON data
-      const githubData = activity.github_data as any || { contributions: 0, repositories: [] }
-      const twitterData = activity.twitter_data as any || { tweet_count: 0, tweet_urls: [] }
-      const instagramData = activity.instagram_data as any || { post_count: 0, post_urls: [] }
-      const youtubeData = activity.youtube_data as any || { video_count: 0, video_urls: [] }
+      const githubData = activity.github_data as GithubData || { contributions: 0, repositories: [] }
+      const twitterData = activity.twitter_data as TwitterData || { tweet_count: 0, tweet_urls: [] }
+      const instagramData = activity.instagram_data as InstagramData || { post_count: 0, post_urls: [] }
+      const youtubeData = activity.youtube_data as YoutubeData || { video_count: 0, video_urls: [] }
       
       // Get counts from each platform's data
       const githubCount = githubData.contributions || 0
@@ -170,10 +185,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Extract platform data
-    const githubData = activityData.github_data as any || { contributions: 0, repositories: [] }
-    const twitterData = activityData.twitter_data as any || { tweet_count: 0, tweet_urls: [], tweets: [] }
-    const instagramData = activityData.instagram_data as any || { post_count: 0, post_urls: [], posts: [] }
-    const youtubeData = activityData.youtube_data as any || { video_count: 0, video_urls: [], videos: [] }
+    const githubData = activityData.github_data as GithubData || { contributions: 0, repositories: [] }
+    const twitterData = activityData.twitter_data as TwitterData || { tweet_count: 0, tweet_urls: [], tweets: [] }
+    const instagramData = activityData.instagram_data as InstagramData || { post_count: 0, post_urls: [], posts: [] }
+    const youtubeData = activityData.youtube_data as YoutubeData || { video_count: 0, video_urls: [], videos: [] }
     
     // Create detailed activity object
     const detailedActivity = {
