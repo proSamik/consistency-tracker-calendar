@@ -88,6 +88,7 @@ export default function ActivityDetails({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   
   // Format date for display
   const formattedDate = date ? format(parseISO(date), 'MMMM d, yyyy') : ''
@@ -130,6 +131,19 @@ export default function ActivityDetails({
     
     fetchDetailedActivity()
   }, [date, username, isPublicView])
+
+  // Apply animation after component mounts
+  useEffect(() => {
+    setIsOpen(true)
+  }, [])
+
+  // Handle closing with animation
+  const handleClose = () => {
+    setIsOpen(false)
+    setTimeout(() => {
+      onClose()
+    }, 300) // Match animation duration
+  }
 
   // Handle syncing a specific platform for this date
   const syncPlatform = async (platform: string) => {
@@ -202,9 +216,36 @@ export default function ActivityDetails({
     return activityData.privacy[key];
   }
   
+  // Handle key press for ESC to close modal
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      }
+    };
+    
+    // Add event listener
+    document.addEventListener('keydown', handleEscKey);
+    
+    // Remove event listener on cleanup
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [handleClose]);
+  
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto border border-gray-200">
+    <div 
+      className={`fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        isOpen ? 'bg-gray-500/30' : 'bg-transparent'
+      }`}
+      onClick={handleClose}
+    >
+      <div 
+        className={`bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto border border-gray-200 transform transition-all duration-300 ${
+          isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+        }`}
+        onClick={(e) => e.stopPropagation()} 
+      >
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-gray-800">
@@ -212,7 +253,7 @@ export default function ActivityDetails({
               {platformFilter && ` - ${platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}`}
             </h3>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg flex items-center space-x-1 transition-colors"
               aria-label="Close"
             >
