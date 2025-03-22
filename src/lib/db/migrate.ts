@@ -1,4 +1,3 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
@@ -10,8 +9,6 @@ dotenv.config();
 if (!process.env.DATABASE_URL) {
   throw new Error('Missing DATABASE_URL environment variable');
 }
-
-const MIGRATIONS_FOLDER = './drizzle';
 
 /**
  * Runs database migrations using Drizzle
