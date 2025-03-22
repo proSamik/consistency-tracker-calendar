@@ -24,7 +24,7 @@ export default function SyncControls({
         <button
           onClick={() => syncPlatform('all')}
           disabled={syncing}
-          className={`px-3 py-1 rounded-md ${syncing ? 'bg-gray-700' : 'bg-indigo-700 hover:bg-indigo-600'}`}
+          className={`px-4 py-2 rounded-lg font-medium text-white ${syncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 shadow-md hover:shadow-lg transition-all duration-200'}`}
         >
           {syncing ? 'Syncing...' : 'Sync All Platforms'}
         </button>
@@ -33,7 +33,7 @@ export default function SyncControls({
         <button
           onClick={() => syncPlatform(platform)}
           disabled={syncing}
-          className={`px-3 py-1 rounded-md ${getPlatformButtonClass(platform)}`}
+          className={`px-4 py-2 rounded-lg font-medium ${getPlatformButtonClass(platform)} transition-all duration-200`}
         >
           {syncing ? 'Syncing...' : `Sync ${platform.charAt(0).toUpperCase() + platform.slice(1)}`}
         </button>
