@@ -141,7 +141,7 @@ export default function ActivityDetails({
       const timezoneOffsetMinutes = new Date().getTimezoneOffset();
       
       let endpoint = '/api/sync/apify';
-      let body: any = { date };
+      const body: any = { date };
       
       if (platform === 'github') {
         endpoint = '/api/sync/github';
