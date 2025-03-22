@@ -2,7 +2,6 @@
  * This script syncs migration files with your database state.
  * Use when you've lost your local migrations folder but the database is intact.
  */
-import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
@@ -13,12 +12,6 @@ dotenv.config();
 
 if (!process.env.DATABASE_URL) {
   throw new Error('Missing DATABASE_URL environment variable');
-}
-
-interface MigrationRecord {
-  id: number;
-  hash: string;
-  created_at: Date;
 }
 
 /**
@@ -111,8 +104,6 @@ SELECT 1; -- No-op statement`;
     
     // Create the _drizzle_migrations record if needed
     try {
-      // Create Drizzle instance
-      const db = drizzle(client);
       
       // Check if _drizzle_migrations table exists
       console.log('Checking for _drizzle_migrations table...');
@@ -156,7 +147,7 @@ SELECT 1; -- No-op statement`;
       // Always try to close the client
       try {
         await client.end();
-      } catch (e) {
+      } catch {
         console.warn('Could not close database connection cleanly');
       }
     }
