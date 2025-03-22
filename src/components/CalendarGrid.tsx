@@ -57,9 +57,9 @@ export default function CalendarGrid({
             <div className="text-xs text-gray-600">Fri</div>
           </div>
           
-          <div className="grid grid-cols-52 gap-x-5 gap-y-3">
+          <div className="grid grid-cols-52 gap-x-6">
             {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-3">
+              <div key={weekIndex} className="flex flex-col gap-2">
                 {week.map((day, dayIndex) => {
                   // Find activity for this day if any
                   const activity = filteredActivities.find(a => {
@@ -79,7 +79,7 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={dayIndex}
-                      className={`w-5 h-5 mx-0.5 rounded-md ${colorClass} cursor-pointer hover:opacity-100 hover:shadow-md hover:shadow-gray-400/30 transform hover:scale-105 transition-all duration-150`}
+                      className={`w-5 h-5 rounded-xs ${colorClass} cursor-pointer hover:opacity-100 hover:shadow-md hover:shadow-gray-400/30 transform hover:scale-105 transition-all duration-150`}
                       title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
                       onClick={() => handleDayClick(day)}
                     ></div>
