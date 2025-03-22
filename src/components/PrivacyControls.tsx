@@ -166,23 +166,29 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
   if (platform !== 'all') {
     return (
       <div className="flex flex-col space-y-2 mb-4">
-        <h3 className="text-sm font-medium text-gray-300">Privacy Setting</h3>
+        <h3 className="text-sm font-medium text-gray-700">Privacy Setting</h3>
         
         {error && (
-          <div className="bg-red-900 text-white p-2 mb-2 rounded text-xs">
+          <div className="bg-red-100 text-red-700 p-2 mb-2 rounded text-xs border border-red-300">
             {error}
           </div>
         )}
         
-        <div className="flex items-center justify-between p-2 rounded bg-opacity-30" 
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white border shadow-sm"
           style={{
-            backgroundColor: platform === 'github' ? 'rgba(22, 163, 74, 0.3)' : 
-                            platform === 'twitter' ? 'rgba(29, 155, 240, 0.3)' :
-                            platform === 'youtube' ? 'rgba(239, 68, 68, 0.3)' : 
-                            'rgba(219, 39, 119, 0.3)'
+            borderColor: platform === 'github' ? 'rgb(134, 239, 172)' : 
+                        platform === 'twitter' ? 'rgb(147, 197, 253)' :
+                        platform === 'youtube' ? 'rgb(252, 165, 165)' : 
+                        'rgb(249, 168, 212)'
           }}>
-          <div className="text-sm">
-            <span className="font-medium">{platform.charAt(0).toUpperCase() + platform.slice(1)}:</span> {getPrivacyLabel(platform)}
+          <div className="text-sm text-gray-700">
+            <span className="font-medium" 
+              style={{
+                color: platform === 'github' ? 'rgb(21, 128, 61)' : 
+                      platform === 'twitter' ? 'rgb(29, 78, 216)' :
+                      platform === 'youtube' ? 'rgb(185, 28, 28)' : 
+                      'rgb(157, 23, 77)'
+              }}>{platform.charAt(0).toUpperCase() + platform.slice(1)}:</span> {getPrivacyLabel(platform)}
           </div>
           <Switch 
             checked={privacySettings[`${platform}_private` as keyof typeof privacySettings]}
@@ -212,9 +218,9 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
       
       <div className="grid grid-cols-2 gap-4">
         {/* GitHub Privacy Toggle */}
-        <div className="flex items-center justify-between p-2 rounded bg-green-900/30">
-          <div className="text-xs">
-            <span className="font-medium">GitHub:</span> {getPrivacyLabel('github')}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-green-300 shadow-sm">
+          <div className="text-sm text-gray-700">
+            <span className="font-medium text-green-700">GitHub:</span> {getPrivacyLabel('github')}
           </div>
           <Switch 
             checked={privacySettings.github_private}
@@ -224,9 +230,9 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
         </div>
         
         {/* Twitter Privacy Toggle */}
-        <div className="flex items-center justify-between p-2 rounded bg-blue-900/30">
-          <div className="text-xs">
-            <span className="font-medium">Twitter:</span> {getPrivacyLabel('twitter')}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-blue-300 shadow-sm">
+          <div className="text-sm text-gray-700">
+            <span className="font-medium text-blue-700">Twitter:</span> {getPrivacyLabel('twitter')}
           </div>
           <Switch 
             checked={privacySettings.twitter_private}
@@ -236,9 +242,9 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
         </div>
         
         {/* YouTube Privacy Toggle */}
-        <div className="flex items-center justify-between p-2 rounded bg-red-900/30">
-          <div className="text-xs">
-            <span className="font-medium">YouTube:</span> {getPrivacyLabel('youtube')}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-red-300 shadow-sm">
+          <div className="text-sm text-gray-700">
+            <span className="font-medium text-red-700">YouTube:</span> {getPrivacyLabel('youtube')}
           </div>
           <Switch 
             checked={privacySettings.youtube_private}
@@ -248,9 +254,9 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
         </div>
         
         {/* Instagram Privacy Toggle */}
-        <div className="flex items-center justify-between p-2 rounded bg-pink-900/30">
-          <div className="text-xs">
-            <span className="font-medium">Instagram:</span> {getPrivacyLabel('instagram')}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-pink-300 shadow-sm">
+          <div className="text-sm text-gray-700">
+            <span className="font-medium text-pink-700">Instagram:</span> {getPrivacyLabel('instagram')}
           </div>
           <Switch 
             checked={privacySettings.instagram_private}
