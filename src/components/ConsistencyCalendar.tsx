@@ -373,35 +373,35 @@ export default function ConsistencyCalendar({
 
   // Calculate color for a cell based on activity count and platform
   const getCellColor = (count: number) => {
-    if (count === 0) return 'bg-gray-800'
+    if (count === 0) return 'bg-gray-200 border border-gray-300'
     
-    // Platform-specific colors
+    // Platform-specific colors with improved contrast for white background
     if (platform === 'github') {
-      if (count <= 2) return 'bg-green-900'
-      if (count <= 5) return 'bg-green-700'
-      if (count <= 10) return 'bg-green-600'
-      return 'bg-green-500'
+      if (count <= 2) return 'bg-green-300 border border-green-400 shadow-sm shadow-green-400/50'
+      if (count <= 5) return 'bg-green-500 border border-green-600 shadow-sm shadow-green-500/50' 
+      if (count <= 10) return 'bg-green-600 border border-green-700 shadow-sm shadow-green-600/50'
+      return 'bg-green-700 border border-green-800 shadow-sm shadow-green-700/50'
     } else if (platform === 'twitter') {
-      if (count <= 2) return 'bg-blue-900'
-      if (count <= 5) return 'bg-blue-700'
-      if (count <= 10) return 'bg-blue-600'
-      return 'bg-blue-500'
+      if (count <= 2) return 'bg-blue-300 border border-blue-400 shadow-sm shadow-blue-400/50'
+      if (count <= 5) return 'bg-blue-500 border border-blue-600 shadow-sm shadow-blue-500/50'
+      if (count <= 10) return 'bg-blue-600 border border-blue-700 shadow-sm shadow-blue-600/50'
+      return 'bg-blue-700 border border-blue-800 shadow-sm shadow-blue-700/50'
     } else if (platform === 'instagram') {
-      if (count <= 2) return 'bg-pink-900'
-      if (count <= 5) return 'bg-pink-700'
-      if (count <= 10) return 'bg-pink-600'
-      return 'bg-pink-500'
+      if (count <= 2) return 'bg-pink-300 border border-pink-400 shadow-sm shadow-pink-400/50'
+      if (count <= 5) return 'bg-pink-500 border border-pink-600 shadow-sm shadow-pink-500/50'
+      if (count <= 10) return 'bg-pink-600 border border-pink-700 shadow-sm shadow-pink-600/50'
+      return 'bg-pink-700 border border-pink-800 shadow-sm shadow-pink-700/50'
     } else if (platform === 'youtube') {
-      if (count <= 2) return 'bg-red-900'
-      if (count <= 5) return 'bg-red-700'
-      if (count <= 10) return 'bg-red-600'
-      return 'bg-red-500'
+      if (count <= 2) return 'bg-red-300 border border-red-400 shadow-sm shadow-red-400/50'
+      if (count <= 5) return 'bg-red-500 border border-red-600 shadow-sm shadow-red-500/50'
+      if (count <= 10) return 'bg-red-600 border border-red-700 shadow-sm shadow-red-600/50'
+      return 'bg-red-700 border border-red-800 shadow-sm shadow-red-700/50'
     } else {
-      // Default emerald colors for all platforms
-      if (count <= 2) return 'bg-emerald-900'
-      if (count <= 5) return 'bg-emerald-700'
-      if (count <= 10) return 'bg-emerald-600'
-      return 'bg-emerald-500'
+      // Default purple colors for all platforms
+      if (count <= 2) return 'bg-purple-300 border border-purple-400 shadow-sm shadow-purple-400/50'
+      if (count <= 5) return 'bg-purple-500 border border-purple-600 shadow-sm shadow-purple-500/50'
+      if (count <= 10) return 'bg-purple-600 border border-purple-700 shadow-sm shadow-purple-600/50'
+      return 'bg-purple-700 border border-purple-800 shadow-sm shadow-purple-700/50'
     }
   }
 
@@ -439,18 +439,18 @@ export default function ConsistencyCalendar({
   
   // Get platform-specific button class
   const getPlatformButtonClass = useCallback((buttonPlatform: string) => {
-    if (syncing) return 'bg-gray-700';
+    if (syncing) return 'bg-gray-300 text-gray-700';
     
     if (buttonPlatform === 'github') 
-      return 'bg-green-700 hover:bg-green-600';
+      return 'bg-green-600 hover:bg-green-700 text-white shadow-sm';
     if (buttonPlatform === 'twitter') 
-      return 'bg-blue-700 hover:bg-blue-600';
+      return 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm';
     if (buttonPlatform === 'instagram') 
-      return 'bg-pink-700 hover:bg-pink-600';
+      return 'bg-pink-600 hover:bg-pink-700 text-white shadow-sm';
     if (buttonPlatform === 'youtube') 
-      return 'bg-red-700 hover:bg-red-600';
+      return 'bg-red-600 hover:bg-red-700 text-white shadow-sm';
     
-    return 'bg-indigo-700 hover:bg-indigo-600';
+    return 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm';
   }, [syncing]);
 
   // Handle clicking on a day cell
@@ -476,7 +476,7 @@ export default function ConsistencyCalendar({
   }, []);
   
   return (
-    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
+    <div className="bg-gray-100 text-gray-800 p-6 rounded-xl shadow-md border border-gray-200">
       {/* Calendar Header */}
       <CalendarHeader
         filteredActivities={filteredActivities}
