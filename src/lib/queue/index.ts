@@ -148,6 +148,14 @@ export async function updateTaskStatus(
   });
 }
 
+// Add an interface for the API request body
+interface SyncRequestBody {
+  date: string;
+  platform?: string;
+  userId?: string;
+  [key: string]: any;
+}
+
 /**
  * Process the next task in the queue
  * @returns The processed task or null if no task was found
@@ -163,14 +171,15 @@ export async function processNextTask() {
   try {
     // Call the appropriate API endpoint based on the platform
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    let endpoint = '/api/sync/apify';
-    let body: any = { date: task.sync_date };
+    const endpoint = task.platform === 'github' 
+      ? '/api/sync/github' 
+      : task.platform === 'youtube'
+        ? '/api/sync/youtube'
+        : '/api/sync/apify';
     
-    if (task.platform === 'github') {
-      endpoint = '/api/sync/github';
-    } else if (task.platform === 'youtube') {
-      endpoint = '/api/sync/youtube';
-    } else {
+    const body: SyncRequestBody = { date: task.sync_date };
+    
+    if (endpoint === '/api/sync/apify') {
       // For twitter and instagram, use apify endpoint
       body.platform = task.platform;
     }
@@ -204,11 +213,12 @@ export async function processNextTask() {
     await updateTaskStatus(task.id, 'completed');
     
     return task;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error processing task ${task.id}:`, error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     
     // Mark task as failed
-    await updateTaskStatus(task.id, 'failed', error.message);
+    await updateTaskStatus(task.id, 'failed', errorMessage);
     
     // If retry limit not reached, requeue with lower priority
     if ((task.retry_count ?? 0) < 3) {
