@@ -116,7 +116,7 @@ export default function ProfileCalendars({
       
       <div className="mt-4 text-sm text-gray-500">
         <p>
-          These calendars show {userData.full_name || username}'s activity across different platforms.
+          These calendars show {userData.full_name || username}&apos;s activity across different platforms.
           Each cell represents a day, and the color intensity shows the level of activity.
           Private activities are not displayed.
         </p>
