@@ -3,6 +3,7 @@ import { updateSession } from '@/utils/supabase/middleware'
 
 /**
  * Edge middleware function for authentication checking and token refreshing
+ * Excludes the landing page (/) from authentication requirements
  */
 export async function middleware(request: NextRequest) {
   return await updateSession(request)
@@ -14,12 +15,13 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except for:
+     * - Root path (/) - Landing page
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * - Any static assets with extensions
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|$).*)',
   ],
 } 
