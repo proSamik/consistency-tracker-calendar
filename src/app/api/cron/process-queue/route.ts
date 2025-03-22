@@ -52,11 +52,12 @@ export async function POST(request: Request) {
       message: 'Queue processor completed',
       processed: processedCount
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in queue processor job:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ 
       success: false, 
-      error: error.message || 'Unknown error' 
+      error: errorMessage 
     }, { status: 500 })
   }
 } 
