@@ -36,6 +36,13 @@ interface ConsistencyCalendarProps {
   isPublicView?: boolean
 }
 
+// Add new interfaces for request bodies and errors
+interface SyncRequestBody {
+  date: string;
+  platform?: string;
+  [key: string]: any;
+}
+
 /**
  * Component that displays a GitHub-style contributions calendar
  * Shows activity across platforms and allows viewing details
@@ -76,7 +83,7 @@ export default function ConsistencyCalendar({
       formattedStartDate: format(start, 'yyyy-MM-dd'),
       formattedEndDate: format(end, 'yyyy-MM-dd'),
     }
-  }, [yearOffset, refreshKey])
+  }, [yearOffset]);
 
   // Memoize calendar generation to prevent recalculation on every render
   const { months, weeks } = useMemo(() => {
@@ -158,9 +165,9 @@ export default function ConsistencyCalendar({
         const data = await response.json();
         console.log('Loaded activities:', data);
         setActivities(data.activities || []);
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Don't set error state if the request was aborted
-        if (err.name === 'AbortError') {
+        if (err instanceof Error && err.name === 'AbortError') {
           console.log('Activities fetch aborted');
           return;
         }
@@ -180,11 +187,9 @@ export default function ConsistencyCalendar({
     
     return () => {
       isMounted = false;
-      if (controller) {
-        controller.abort();
-      }
+      controller?.abort();
     };
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, activities.length, isPublicView]);
+  }, [dateRange, username, refreshKey, isPublicView, platform, loading, activities.length]);
 
   // Handle syncing activities for a specific platform with useCallback
   const syncPlatform = useCallback(async (syncPlatform: string) => {
@@ -214,14 +219,15 @@ export default function ConsistencyCalendar({
         for (const platformToSync of platformsToSync) {
           try {
             // Use different endpoints based on platform
-            let endpoint = '/api/sync/apify';
-            let body: any = { date: today };
+            const endpoint = platformToSync === 'github' 
+              ? '/api/sync/github' 
+              : platformToSync === 'youtube'
+                ? '/api/sync/youtube'
+                : '/api/sync/apify';
             
-            if (platformToSync === 'github') {
-              endpoint = '/api/sync/github';
-            } else if (platformToSync === 'youtube') {
-              endpoint = '/api/sync/youtube';
-            } else {
+            const body: SyncRequestBody = { date: today };
+            
+            if (endpoint === '/api/sync/apify') {
               // For twitter and instagram, use apify endpoint
               body.platform = platformToSync;
             }
@@ -258,7 +264,7 @@ export default function ConsistencyCalendar({
         // Wait a moment to ensure DB updates are complete
         setTimeout(async () => {
           // Refresh activities data
-          await refreshActivities();
+          await refreshActivities(); // Ensure refreshActivities is declared before use
           setSyncing(false);
         }, 1500); // Slightly longer delay when syncing all platforms
         
@@ -267,14 +273,15 @@ export default function ConsistencyCalendar({
       
       // Handle single platform sync (original code)
       // Use different endpoints based on platform
-      let endpoint = '/api/sync/apify';
-      let body: any = { date: today };
+      const endpoint = syncPlatform === 'github' 
+        ? '/api/sync/github' 
+        : syncPlatform === 'youtube'
+          ? '/api/sync/youtube'
+          : '/api/sync/apify';
       
-      if (syncPlatform === 'github') {
-        endpoint = '/api/sync/github';
-      } else if (syncPlatform === 'youtube') {
-        endpoint = '/api/sync/youtube';
-      } else {
+      const body: SyncRequestBody = { date: today };
+      
+      if (endpoint === '/api/sync/apify') {
         // For twitter and instagram, still use apify endpoint
         body.platform = syncPlatform;
       }
@@ -306,21 +313,27 @@ export default function ConsistencyCalendar({
       // Wait a moment to ensure DB updates are complete
       setTimeout(async () => {
         // Refresh activities data
-        await refreshActivities();
+        await refreshActivities(); // Ensure refreshActivities is declared before use
         setSyncing(false);
       }, 1000); // Increase delay to ensure data is ready
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error syncing ${syncPlatform}:`, err);
-      setError(err.message || `Failed to sync ${syncPlatform} data`);
+      
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('not configured')) {
+        setError(`${syncPlatform} username is not configured in your profile`);
+      } else {
+        setError(`Failed to sync ${syncPlatform} data: ${errorMessage}`);
+      }
       setSyncing(false);
     }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform, isPublicView]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, showSync, platform, isPublicView, activities.length]);
 
   /**
    * Helper function to refresh activities data
    */
-  const refreshActivities = useCallback(async () => {
+  const refreshActivities = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       
@@ -338,13 +351,13 @@ export default function ConsistencyCalendar({
       const data = await activitiesResponse.json();
       console.log('Refreshed activities data:', data);
       setActivities(data.activities || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error refreshing activities:', err);
-      setError(err.message || 'Failed to refresh activity data');
+      setError('Failed to refresh activity data');
     } finally {
       setLoading(false);
     }
-  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate]);
+  }, [username, dateRange.formattedStartDate, dateRange.formattedEndDate, setRefreshKey, setLoading, setActivities, setError]);
 
   // Calculate color for a cell based on activity count and platform
   const getCellColor = (count: number) => {
