@@ -233,7 +233,7 @@ export default function ConsistencyCalendar({
   }, [setRefreshKey, setLoading, setError]);
 
   // Handle syncing activities for a specific platform with useCallback
-  const syncPlatform = useCallback(async (syncPlatform: string) => {
+  const syncPlatform = useCallback(async (syncPlatform: string, selectedDate?: string) => {
     if (!showSync) return;
     
     // Only sync the current platform if filtering is enabled
@@ -243,13 +243,14 @@ export default function ConsistencyCalendar({
     setError(null);
     
     try {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Use selectedDate if provided, otherwise use current date
+      const targetDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
       // Get user's timezone offset in minutes
       const timezoneOffsetMinutes = new Date().getTimezoneOffset();
       
       // If 'all' is selected, sync all platforms
       if (syncPlatform === 'all') {
-        console.log('Syncing all platforms sequentially');
+        console.log(`Syncing all platforms sequentially for date: ${targetDate}`);
         
         // Clear activities first to force a refresh
         setActivities([]);
@@ -266,14 +267,14 @@ export default function ConsistencyCalendar({
                 ? '/api/sync/youtube'
                 : '/api/sync/apify';
             
-            const body: SyncRequestBody = { date: today };
+            const body: SyncRequestBody = { date: targetDate };
             
             if (endpoint === '/api/sync/apify') {
               // For twitter and instagram, use apify endpoint
               body.platform = platformToSync;
             }
             
-            console.log(`Syncing ${platformToSync} with timezone offset: ${timezoneOffsetMinutes} minutes`);
+            console.log(`Syncing ${platformToSync} for date ${targetDate} with timezone offset: ${timezoneOffsetMinutes} minutes`);
             
             const response = await fetch(endpoint, {
               method: 'POST',
@@ -291,7 +292,7 @@ export default function ConsistencyCalendar({
               continue;
             }
             
-            console.log(`Successfully synced ${platformToSync} data`);
+            console.log(`Successfully synced ${platformToSync} data for date ${targetDate}`);
           } catch (err) {
             console.error(`Error syncing ${platformToSync}:`, err);
             // Continue with other platforms even if one fails
@@ -320,14 +321,14 @@ export default function ConsistencyCalendar({
           ? '/api/sync/youtube'
           : '/api/sync/apify';
       
-      const body: SyncRequestBody = { date: today };
+      const body: SyncRequestBody = { date: targetDate };
       
       if (endpoint === '/api/sync/apify') {
         // For twitter and instagram, still use apify endpoint
         body.platform = syncPlatform;
       }
       
-      console.log(`Syncing ${syncPlatform} with timezone offset: ${timezoneOffsetMinutes} minutes`);
+      console.log(`Syncing ${syncPlatform} for date ${targetDate} with timezone offset: ${timezoneOffsetMinutes} minutes`);
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -343,7 +344,7 @@ export default function ConsistencyCalendar({
         throw new Error(errorData.error || `Failed to sync ${syncPlatform} data (${response.status})`);
       }
       
-      console.log(`Successfully synced ${syncPlatform} data`);
+      console.log(`Successfully synced ${syncPlatform} data for date ${targetDate}`);
       
       // Clear activities first to force a refresh
       setActivities([]);
