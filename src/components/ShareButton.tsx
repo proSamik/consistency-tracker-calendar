@@ -152,24 +152,50 @@ export default function ShareButton({
     if (!userData) return `Created by ${username}`
     
     if (platform === 'all') {
-      // Show all available handles
+      // Show all available handles that aren't private
       const handles = []
-      if (userData.github_username) handles.push(`GitHub: @${userData.github_username}`)
-      if (userData.twitter_username) handles.push(`Twitter: @${userData.twitter_username}`)
-      if (userData.instagram_username) handles.push(`Instagram: @${userData.instagram_username}`)
-      if (userData.youtube_username) handles.push(`YouTube: @${userData.youtube_username}`)
+      if (userData.github_username && !privacySettings.github) handles.push(`GitHub: @${userData.github_username}`)
+      if (userData.twitter_username && !privacySettings.twitter) handles.push(`Twitter: @${userData.twitter_username}`)
+      if (userData.instagram_username && !privacySettings.instagram) handles.push(`Instagram: @${userData.instagram_username}`)
+      if (userData.youtube_username && !privacySettings.youtube) handles.push(`YouTube: @${userData.youtube_username}`)
       
-      return handles.join(' • ')
+      return handles.length > 0 ? handles.join(' • ') : `Created by ${username}`
     } else {
-      // Show platform-specific handle
+      // Show platform-specific handle if it's not private
       const platformUsername = userData[`${platform}_username` as keyof ProfileData]
-      if (platformUsername) {
+      if (platformUsername && !privacySettings[platform]) {
         return `${platform.charAt(0).toUpperCase() + platform.slice(1)}: @${platformUsername}`
       }
     }
     
     return `Created by ${username}`
   }
+  
+  // State to track privacy settings
+  const [privacySettings, setPrivacySettings] = useState<Record<string, boolean>>({
+    github: false,
+    twitter: false,
+    instagram: false,
+    youtube: false
+  })
+
+  // Fetch privacy settings when component mounts
+  useEffect(() => {
+    async function fetchPrivacySettings() {
+      try {
+        const response = await fetch(`/api/privacy?username=${username}`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          setPrivacySettings(data.privacy || {})
+        }
+      } catch (err) {
+        console.error('Error fetching privacy settings:', err)
+      }
+    }
+    
+    fetchPrivacySettings()
+  }, [username])
   
   // Direct canvas drawing approach
   const createCanvasImage = () => {
@@ -342,19 +368,19 @@ export default function ShareButton({
       const textSpacing = 5;
       const logosY = 450;
       
-      // Determine which platforms to show based on the selected platform
+      // Determine which platforms to show based on the selected platform and privacy settings
       const handles: string[] = [];
       
       if (platform === 'all') {
-        // Show all available platforms
-        if (userData.github_username) handles.push('github');
-        if (userData.twitter_username) handles.push('twitter');
-        if (userData.instagram_username) handles.push('instagram');
-        if (userData.youtube_username) handles.push('youtube');
+        // Show all available platforms that aren't private
+        if (userData.github_username && !privacySettings.github) handles.push('github');
+        if (userData.twitter_username && !privacySettings.twitter) handles.push('twitter');
+        if (userData.instagram_username && !privacySettings.instagram) handles.push('instagram');
+        if (userData.youtube_username && !privacySettings.youtube) handles.push('youtube');
       } else {
-        // Show only the selected platform if the user has that handle
+        // Show only the selected platform if the user has that handle and it's not private
         const platformUsername = userData[`${platform}_username` as keyof ProfileData];
-        if (platformUsername) {
+        if (platformUsername && !privacySettings[platform]) {
           handles.push(platform);
         }
       }
