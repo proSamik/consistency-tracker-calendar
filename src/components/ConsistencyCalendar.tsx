@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   addDays,
   startOfWeek,
@@ -10,7 +10,14 @@ import {
   parseISO,
   isAfter,
   startOfYear,
-  endOfYear
+  endOfYear,
+  isSameDay,
+  isBefore,
+  differenceInCalendarDays,
+  isSameMonth,
+  startOfMonth,
+  getMonth,
+  getYear
 } from 'date-fns'
 import ActivityDetails from '@/components/ActivityDetails'
 import CalendarGrid from '@/components/CalendarGrid'
@@ -18,6 +25,7 @@ import CalendarLegend from '@/components/CalendarLegend'
 import SyncControls from '@/components/SyncControls'
 import CalendarHeader from '@/components/CalendarHeader'
 import PrivacyControls from '@/components/PrivacyControls'
+import StreakWidget from '@/components/StreakWidget'
 
 interface ActivityData {
   date: string
@@ -34,6 +42,16 @@ interface ConsistencyCalendarProps {
   showPrivacyControls?: boolean
   platform?: 'github' | 'twitter' | 'instagram' | 'youtube' | 'all'
   isPublicView?: boolean
+}
+
+// Add new interfaces for streak data
+interface StreakInfo {
+  currentStreak: number
+  longestStreak: number
+  currentStreakStart?: Date
+  currentStreakEnd?: Date
+  longestStreakStart?: Date
+  longestStreakEnd?: Date
 }
 
 // Add new interfaces for request bodies and errors
@@ -62,11 +80,20 @@ export default function ConsistencyCalendar({
   const [yearOffset, setYearOffset] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [currentMonth, setCurrentMonth] = useState(getMonth(new Date()))
+  const todayRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>
 
   // Force yearOffset to 0 for now since we're only using 2025
   useEffect(() => {
     setYearOffset(0);
   }, []);
+
+  // Scroll to current month/day when calendar loads
+  useEffect(() => {
+    if (!loading && todayRef.current) {
+      todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }
+  }, [loading]);
 
   // Calculate date range using useMemo to prevent recalculations on every render
   const dateRange = useMemo(() => {
@@ -428,6 +455,102 @@ export default function ConsistencyCalendar({
     });
   }, [activities, platform]);
 
+  // Calculate streaks based on activity data
+  const streakInfo = useMemo((): StreakInfo => {
+    if (!filteredActivities || filteredActivities.length === 0) {
+      return {
+        currentStreak: 0,
+        longestStreak: 0
+      };
+    }
+
+    // Sort activities by date
+    const sortedActivities = [...filteredActivities]
+      .filter(activity => activity.count > 0) // Only consider days with activity
+      .sort((a, b) => {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      });
+
+    if (sortedActivities.length === 0) {
+      return {
+        currentStreak: 0,
+        longestStreak: 0
+      };
+    }
+
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let currentStreakStart: Date | undefined;
+    let currentStreakEnd: Date | undefined;
+    let longestStreakStart: Date | undefined;
+    let longestStreakEnd: Date | undefined;
+    let streakStartDate: Date | undefined;
+
+    // Process sorted activities to find streaks
+    for (let i = 0; i < sortedActivities.length; i++) {
+      const currentDate = new Date(sortedActivities[i].date);
+      
+      // Start a new streak or continue current one
+      if (i === 0 || differenceInCalendarDays(currentDate, new Date(sortedActivities[i-1].date)) > 1) {
+        // If this is a new streak, save the previous streak if it's the longest
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+          longestStreakStart = streakStartDate;
+          longestStreakEnd = new Date(sortedActivities[i-1].date);
+        }
+        
+        // Start a new streak
+        currentStreak = 1;
+        streakStartDate = currentDate;
+      } else {
+        // Continue the current streak
+        currentStreak++;
+      }
+      
+      // If this is the last activity, check if current streak is the longest
+      if (i === sortedActivities.length - 1) {
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+          longestStreakStart = streakStartDate;
+          longestStreakEnd = currentDate;
+        } else {
+          // Last activity is part of the current streak
+          currentStreakStart = streakStartDate;
+          currentStreakEnd = currentDate;
+        }
+      }
+    }
+
+    // Check if the current streak is ongoing (includes today or yesterday)
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const lastActivityDate = new Date(sortedActivities[sortedActivities.length - 1].date);
+    
+    const isCurrentStreakOngoing = 
+      isSameDay(lastActivityDate, today) || 
+      isSameDay(lastActivityDate, yesterday);
+    
+    if (!isCurrentStreakOngoing) {
+      currentStreak = 0;
+      currentStreakStart = undefined;
+      currentStreakEnd = undefined;
+    } else {
+      currentStreakStart = streakStartDate;
+      currentStreakEnd = lastActivityDate;
+    }
+
+    return {
+      currentStreak,
+      longestStreak,
+      currentStreakStart,
+      currentStreakEnd,
+      longestStreakStart,
+      longestStreakEnd
+    };
+  }, [filteredActivities]);
+
   // Get platform-specific title
   const getPlatformTitle = useMemo(() => {
     if (platform === 'all') return 'All Platforms';
@@ -477,7 +600,13 @@ export default function ConsistencyCalendar({
   }, []);
   
   return (
-    <div className="bg-gray-100 text-gray-800 p-6 rounded-xl shadow-md border border-gray-200">
+    <div className="bg-gray-100 text-gray-800 p-4 md:p-6 rounded-xl shadow-md border border-gray-200">
+      {/* Streak Widget */}
+      <StreakWidget 
+        streakInfo={streakInfo}
+        platform={platform}
+      />
+      
       {/* Calendar Header */}
       <CalendarHeader
         filteredActivities={filteredActivities}
@@ -512,17 +641,22 @@ export default function ConsistencyCalendar({
       )}
       
       {/* Calendar Grid */}
-      <CalendarGrid
-        months={months}
-        weeks={weeks}
-        dateRange={dateRange}
-        filteredActivities={filteredActivities}
-        getCellColor={getCellColor}
-        toLocalDate={toLocalDate}
-        handleDayClick={handleDayClick}
-        loading={loading}
-        platform={platform}
-      />
+      <div className="calendar-container overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 touch-pan-x">
+        <CalendarGrid
+          months={months}
+          weeks={weeks}
+          dateRange={dateRange}
+          filteredActivities={filteredActivities}
+          getCellColor={getCellColor}
+          toLocalDate={toLocalDate}
+          handleDayClick={handleDayClick}
+          loading={loading}
+          platform={platform}
+          todayRef={todayRef}
+          currentMonth={currentMonth}
+          setCurrentMonth={setCurrentMonth}
+        />
+      </div>
       
       {/* Calendar Legend */}
       <CalendarLegend platform={platform} />
