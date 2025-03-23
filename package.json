@@ -27,6 +27,7 @@
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.5",
     "drizzle-orm": "^0.41.0",
+    "html2canvas": "^1.4.1",
     "next": "15.2.3",
     "postgres": "^3.4.5",
     "react": "^19.0.0",
