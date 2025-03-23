@@ -24,3 +24,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Add smooth scrolling for calendar */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbars but keep functionality */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Touch-friendly scrolling for mobile */
+.touch-pan-x {
+  touch-action: pan-x;
+}
+
+/* Enhance calendar visibility on mobile */
+@media (max-width: 768px) {
+  .calendar-container {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+}
