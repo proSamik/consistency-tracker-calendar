@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, FormEvent, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { login, signup } from './actions'
@@ -384,7 +384,7 @@ function LoginForm() {
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-green-800">Registration successful!</h3>
                 <div className="mt-2 text-sm text-green-700">
-                  <p>We've sent a verification email to <strong>{registeredEmail}</strong>. Please check your inbox and click the verification link to activate your account.</p>
+                  <p>We have sent a verification email to <strong>{registeredEmail}</strong>. Please check your inbox and click the verification link to activate your account.</p>
                 </div>
               </div>
             </div>
@@ -621,6 +621,8 @@ function LoginForm() {
  */
 export default function LoginPage() {
   return (
-    <LoginForm />
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 } 
