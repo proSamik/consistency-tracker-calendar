@@ -176,7 +176,8 @@ export async function signup(formData: FormData) {
       data: {
         username,
         full_name: fullName || '',
-      }
+      },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
     }
   })
 
@@ -228,6 +229,6 @@ export async function signup(formData: FormData) {
     redirect('/login?error=profile_creation_failed')
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/')
+  // Instead of redirecting to home, redirect back to login page with a success message
+  redirect('/login?registration=success&email=' + encodeURIComponent(email))
 } 
