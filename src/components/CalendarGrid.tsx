@@ -4,8 +4,8 @@ import React from 'react'
 import { format, isSameDay } from 'date-fns'
 
 /**
- * Component that renders the actual calendar grid with months, days, and activity squares
- * Handles the visualization of activity data in a GitHub-style grid
+ * Component that displays the calendar grid with days and months
+ * Shows activity levels with color-coded cells
  */
 export default function CalendarGrid({
   months,
@@ -15,7 +15,8 @@ export default function CalendarGrid({
   getCellColor,
   toLocalDate,
   handleDayClick,
-  loading
+  loading,
+  platform = 'all'
 }: {
   months: { name: string; date: Date }[]
   weeks: Date[][]
@@ -25,15 +26,42 @@ export default function CalendarGrid({
   toLocalDate: (dateString: string) => Date
   handleDayClick: (date: Date) => void
   loading: boolean
+  platform?: 'github' | 'twitter' | 'instagram' | 'youtube' | 'all'
 }) {
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="animate-pulse flex flex-col gap-2">
+        <div className="bg-gray-300 h-4 w-full rounded"></div>
+        <div className="grid grid-cols-12 gap-1 mb-4">
+          {Array(12).fill(0).map((_, i) => (
+            <div key={i} className="h-4 bg-gray-300 rounded"></div>
+          ))}
+        </div>
+        <div className="bg-gray-300 h-40 w-full rounded"></div>
       </div>
     )
   }
-  
+
+  /**
+   * Get appropriate activity term based on platform and count
+   * @param count Number of activities
+   * @returns Appropriate term (singular or plural)
+   */
+  const getActivityTerm = (count: number) => {
+    if (platform === 'github') {
+      return count === 1 ? 'contribution' : 'contributions'
+    } else if (platform === 'twitter') {
+      return count === 1 ? 'tweet' : 'tweets'
+    } else if (platform === 'instagram') {
+      return count === 1 ? 'post' : 'posts'
+    } else if (platform === 'youtube') {
+      return count === 1 ? 'video' : 'videos'
+    } else {
+      // All Platforms
+      return count === 1 ? 'activity' : 'activities'
+    }
+  }
+
   return (
     <>
       <div className="md:hidden text-xs text-gray-400 italic mb-2 text-center">
@@ -80,7 +108,7 @@ export default function CalendarGrid({
                     <div
                       key={dayIndex}
                       className={`w-5 h-5 rounded-xs ${colorClass} cursor-pointer hover:opacity-100 hover:shadow-md hover:shadow-gray-400/30 transform hover:scale-105 transition-all duration-150`}
-                      title={`${format(day, 'MMM d, yyyy')}: ${count} contributions`}
+                      title={`${format(day, 'MMM d, yyyy')}: ${count} ${getActivityTerm(count)}`}
                       onClick={() => handleDayClick(day)}
                     ></div>
                   )
