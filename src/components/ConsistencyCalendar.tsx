@@ -26,6 +26,7 @@ import SyncControls from '@/components/SyncControls'
 import CalendarHeader from '@/components/CalendarHeader'
 import PrivacyControls from '@/components/PrivacyControls'
 import StreakWidget from '@/components/StreakWidget'
+import ShareButton from '@/components/ShareButton'
 
 interface ActivityData {
   date: string
@@ -82,6 +83,7 @@ export default function ConsistencyCalendar({
   const [refreshKey, setRefreshKey] = useState(0)
   const [currentMonth, setCurrentMonth] = useState(getMonth(new Date()))
   const todayRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>
+  const calendarRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>
 
   // Force yearOffset to 0 for now since we're only using 2025
   useEffect(() => {
@@ -600,28 +602,41 @@ export default function ConsistencyCalendar({
   }, []);
   
   return (
-    <div className="bg-gray-100 text-gray-800 p-4 md:p-6 rounded-xl shadow-md border border-gray-200">
+    <div className="bg-gray-100 text-gray-800 p-4 md:p-6 rounded-xl shadow-md border border-gray-200" ref={calendarRef}>
       {/* Streak Widget */}
       <StreakWidget 
         streakInfo={streakInfo}
         platform={platform}
       />
       
-      {/* Calendar Header */}
-      <CalendarHeader
-        filteredActivities={filteredActivities}
-        getPlatformTitle={getPlatformTitle}
-        dateRange={dateRange}
-        yearOffset={yearOffset}
-        changeYear={changeYear}
-      />
+      {/* Calendar Header & Share Button */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <CalendarHeader
+          filteredActivities={filteredActivities}
+          getPlatformTitle={getPlatformTitle}
+          dateRange={dateRange}
+          yearOffset={yearOffset}
+          changeYear={changeYear}
+        />
+        
+        {/* Add share button */}
+        <div className="mt-2 sm:mt-0">
+          <ShareButton
+            username={username}
+            platform={platform}
+            calendarRef={calendarRef}
+          />
+        </div>
+      </div>
       
       {/* Privacy Controls - Only show when not in public view */}
       {showPrivacyControls && !isPublicView && (
-        <PrivacyControls
-          username={username}
-          platform={platform}
-        />
+        <div className="privacy-controls">
+          <PrivacyControls
+            username={username}
+            platform={platform}
+          />
+        </div>
       )}
       
       {/* Sync Controls - Only show when not in public view */}
