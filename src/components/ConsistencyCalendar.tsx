@@ -521,6 +521,7 @@ export default function ConsistencyCalendar({
         toLocalDate={toLocalDate}
         handleDayClick={handleDayClick}
         loading={loading}
+        platform={platform}
       />
       
       {/* Calendar Legend */}
