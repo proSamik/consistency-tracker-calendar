@@ -209,7 +209,26 @@ export default function ShareButton({
     ctx.fillStyle = '#ffffff'
     ctx.strokeStyle = '#e5e7eb'
     ctx.lineWidth = 1
+    
+    // Add shadow for 3D effect - main card
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)'
+    ctx.shadowBlur = 15
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 8
     roundRect(ctx, 50, 80, canvas.width - 100, 200, 10, true, true)
+    
+    // Reset shadow for the content inside
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
+    // Add a subtle gradient background to main card
+    const gradientBg = ctx.createLinearGradient(50, 80, 50, 280)
+    gradientBg.addColorStop(0, '#ffffff')
+    gradientBg.addColorStop(1, '#f9fafb')
+    ctx.fillStyle = gradientBg
+    roundRect(ctx, 51, 81, canvas.width - 102, 198, 9, true, false)
     
     // Draw Total section
     ctx.font = 'bold 36px sans-serif'
@@ -228,11 +247,28 @@ export default function ShareButton({
     }
     
     // Draw Current Streak section (middle)
+    // Add shadow to streak circle
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 5
+    
+    // Circle gradient for current streak
+    const circleGradient = ctx.createRadialGradient(canvas.width/2, 130, 0, canvas.width/2, 130, 60)
+    circleGradient.addColorStop(0, getPlatformColor())
+    circleGradient.addColorStop(1, adjustColor(getPlatformColor(), -20)) // Darker at the edges
+    
     // Circle for current streak
     ctx.beginPath()
     ctx.arc(canvas.width/2, 130, 60, 0, Math.PI * 2)
-    ctx.fillStyle = getPlatformColor()
+    ctx.fillStyle = circleGradient
     ctx.fill()
+    
+    // Reset shadow
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
     
     // Current streak number
     ctx.font = 'bold 44px sans-serif'
@@ -266,9 +302,27 @@ export default function ShareButton({
       ctx.fillText(`${streakData.dateRanges.longestStart} - ${streakData.dateRanges.longestEnd}`, 600, 190)
     }
     
-    // Add calendar placeholder text
+    // Add calendar placeholder text with 3D shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.15)'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 6
+    
     ctx.fillStyle = '#f9fafb'
     roundRect(ctx, 50, 300, canvas.width - 100, 80, 10, true, false)
+    
+    // Reset shadow
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
+    // Add a subtle gradient to calendar placeholder
+    const calendarGradient = ctx.createLinearGradient(50, 300, 50, 380)
+    calendarGradient.addColorStop(0, '#f9fafb')
+    calendarGradient.addColorStop(1, '#f3f4f6')
+    ctx.fillStyle = calendarGradient
+    roundRect(ctx, 51, 301, canvas.width - 102, 78, 9, true, false)
     
     ctx.font = '16px sans-serif'
     ctx.fillStyle = '#6b7280'
@@ -375,8 +429,8 @@ export default function ShareButton({
   const getPlatformColorByName = (platformName: string) => {
     switch(platformName) {
       case 'github': return '#22c55e' // green-500
-      case 'twitter': return '#3b82f6' // blue-500
-      case 'instagram': return '#ec4899' // pink-500
+      case 'twitter': return '#000000' // Updated Twitter/X color to black
+      case 'instagram': return '#E4405F' // Keep Instagram pink color, or use gradient later
       case 'youtube': return '#ef4444' // red-500
       default: return '#8b5cf6' // purple-500
     }
@@ -430,68 +484,118 @@ export default function ShareButton({
         break
         
       case 'twitter':
-        // Twitter/X logo path
-        ctx.fillStyle = '#1DA1F2'
+        // X logo (formerly Twitter) - official SVG path
+        ctx.fillStyle = '#000000'
         ctx.beginPath()
-        ctx.moveTo(24, 4.557)
-        ctx.bezierCurveTo(23.117, 4.948, 22.168, 5.212, 21.172, 5.332)
-        ctx.bezierCurveTo(22.188, 4.71, 22.969, 3.759, 23.337, 2.608)
-        ctx.bezierCurveTo(22.386, 3.171, 21.332, 3.582, 20.21, 3.803)
-        ctx.bezierCurveTo(19.312, 2.846, 18.032, 2.25, 16.616, 2.25)
-        ctx.bezierCurveTo(13.437, 2.25, 11.101, 5.214, 11.819, 8.292)
-        ctx.bezierCurveTo(7.728, 8.087, 4.1, 6.128, 1.671, 3.149)
-        ctx.bezierCurveTo(0.381, 5.362, 1.002, 8.257, 3.194, 9.723)
-        ctx.bezierCurveTo(2.388, 9.697, 1.628, 9.476, 0.964, 9.107)
-        ctx.bezierCurveTo(0.911, 11.388, 2.546, 13.522, 4.914, 13.997)
-        ctx.bezierCurveTo(4.221, 14.185, 3.462, 14.229, 2.69, 14.081)
-        ctx.bezierCurveTo(3.316, 16.037, 5.134, 17.46, 7.29, 17.5)
-        ctx.bezierCurveTo(5.22, 19.123, 2.612, 19.848, 0, 19.539)
-        ctx.bezierCurveTo(2.179, 20.937, 4.768, 21.75, 7.548, 21.75)
-        ctx.bezierCurveTo(16.69, 21.75, 21.855, 14.084, 21.543, 7.106)
-        ctx.bezierCurveTo(22.505, 6.411, 23.34, 5.544, 24, 4.557)
+        // Using the exact path from the official X logo SVG
+        ctx.moveTo(18.244, 2.25)
+        ctx.lineTo(21.552, 2.25)
+        ctx.lineTo(14.325, 10.51)
+        ctx.lineTo(22.827, 21.75)
+        ctx.lineTo(16.17, 21.75)
+        ctx.lineTo(10.956, 14.933)
+        ctx.lineTo(4.99, 21.75)
+        ctx.lineTo(1.68, 21.75)
+        ctx.lineTo(9.41, 12.915)
+        ctx.lineTo(1.254, 2.25)
+        ctx.lineTo(8.08, 2.25)
+        ctx.lineTo(12.793, 8.481)
+        ctx.lineTo(18.244, 2.25)
+        ctx.moveTo(17.083, 19.77)
+        ctx.lineTo(18.916, 19.77)
+        ctx.lineTo(7.084, 4.126)
+        ctx.lineTo(5.117, 4.126)
+        ctx.lineTo(17.083, 19.77)
         ctx.fill()
         break
         
       case 'instagram':
-        // Instagram logo path
-        ctx.fillStyle = '#E4405F'
+        // Instagram logo - official SVG path
+        ctx.fillStyle = '#000000'
         ctx.beginPath()
-        ctx.moveTo(12, 2.163)
-        ctx.bezierCurveTo(15.204, 2.163, 15.584, 2.175, 16.85, 2.233)
-        ctx.bezierCurveTo(20.102, 2.381, 21.621, 3.924, 21.769, 7.152)
-        ctx.bezierCurveTo(21.827, 8.417, 21.838, 8.797, 21.838, 12.001)
-        ctx.bezierCurveTo(21.838, 15.206, 21.826, 15.585, 21.769, 16.85)
-        ctx.bezierCurveTo(21.62, 20.075, 20.105, 21.621, 16.85, 21.769)
-        ctx.bezierCurveTo(15.584, 21.827, 15.206, 21.839, 12, 21.839)
-        ctx.bezierCurveTo(8.796, 21.839, 8.416, 21.827, 7.151, 21.769)
-        ctx.bezierCurveTo(3.891, 21.62, 2.38, 20.07, 2.232, 16.849)
-        ctx.bezierCurveTo(2.174, 15.584, 2.162, 15.205, 2.162, 12)
-        ctx.bezierCurveTo(2.162, 8.796, 2.175, 8.417, 2.232, 7.151)
-        ctx.bezierCurveTo(2.381, 3.924, 3.896, 2.38, 7.151, 2.232)
-        ctx.bezierCurveTo(8.417, 2.175, 8.796, 2.163, 12, 2.163)
-        ctx.fill()
         
-        // Center white square
-        ctx.fillStyle = '#ffffff'
-        ctx.beginPath()
-        ctx.moveTo(12, 6.865)
-        ctx.bezierCurveTo(8.597, 6.865, 5.838, 9.624, 5.838, 13.027)
-        ctx.bezierCurveTo(5.838, 16.43, 8.597, 19.189, 12, 19.189)
-        ctx.bezierCurveTo(15.403, 19.189, 18.162, 16.43, 18.162, 13.027)
-        ctx.bezierCurveTo(18.162, 9.624, 15.403, 6.865, 12, 6.865)
-        ctx.fill()
+        // Main shape
+        ctx.moveTo(12, 2.982)
+        ctx.bezierCurveTo(14.937, 2.982, 15.285, 2.993, 16.445, 3.046)
+        ctx.bezierCurveTo(17.522, 3.094, 18.269, 3.275, 18.487, 3.425)
+        ctx.bezierCurveTo(18.954, 3.599, 19.31, 3.892, 19.752, 4.248)
+        ctx.bezierCurveTo(20.21, 4.619, 20.581, 5.068, 20.831, 5.513)
+        ctx.bezierCurveTo(21.061, 5.934, 21.188, 6.395, 21.21, 7.088)
+        ctx.bezierCurveTo(21.263, 8.248, 21.274, 8.596, 21.274, 12.000)
+        ctx.bezierCurveTo(21.274, 15.404, 21.263, 15.752, 21.21, 16.912)
+        ctx.bezierCurveTo(21.188, 17.605, 21.061, 18.066, 20.831, 18.487)
+        ctx.bezierCurveTo(20.315, 19.635, 19.387, 20.521, 18.487, 20.575)
+        ctx.bezierCurveTo(18.269, 20.725, 17.522, 20.907, 16.445, 20.954)
+        ctx.bezierCurveTo(15.285, 21.007, 14.937, 21.018, 12, 21.018)
+        ctx.bezierCurveTo(9.063, 21.018, 8.715, 21.007, 7.555, 20.954)
+        ctx.bezierCurveTo(6.478, 20.906, 5.731, 20.725, 5.513, 20.575)
+        ctx.bezierCurveTo(4.613, 20.521, 3.685, 19.635, 3.169, 18.487)
+        ctx.bezierCurveTo(2.939, 18.066, 2.812, 17.605, 2.79, 16.912)
+        ctx.bezierCurveTo(2.737, 15.752, 2.726, 15.404, 2.726, 12)
+        ctx.bezierCurveTo(2.726, 8.596, 2.737, 8.248, 2.79, 7.088)
+        ctx.bezierCurveTo(2.812, 6.395, 2.939, 5.934, 3.169, 5.513)
+        ctx.bezierCurveTo(3.419, 5.068, 3.79, 4.619, 4.248, 4.248)
+        ctx.bezierCurveTo(4.69, 3.892, 5.046, 3.599, 5.513, 3.425)
+        ctx.bezierCurveTo(5.731, 3.275, 6.478, 3.094, 7.555, 3.046)
+        ctx.bezierCurveTo(8.715, 2.993, 9.063, 2.982, 12, 2.982)
         
-        // Center circle
-        ctx.fillStyle = '#E4405F'
-        ctx.beginPath()
-        ctx.arc(12, 13.027, 2.595, 0, 2 * Math.PI)
-        ctx.fill()
+        ctx.moveTo(12, 1)
+        ctx.bezierCurveTo(9.013, 1, 8.638, 1.013, 7.465, 1.066)
+        ctx.bezierCurveTo(6.057, 1.134, 5.071, 1.333, 4.189, 1.63)
+        ctx.bezierCurveTo(3.261, 1.936, 2.437, 2.421, 1.949, 2.9)
+        ctx.bezierCurveTo(1.371, 3.502, 0.927, 4.223, 0.68, 5.004)
+        ctx.bezierCurveTo(0.398, 5.944, 0.247, 7.035, 0.077, 8.171)
+        ctx.bezierCurveTo(1.012, 8.638, 1, 9.013, 1, 12)
+        ctx.bezierCurveTo(1, 14.987, 1.013, 15.362, 1.066, 16.535)
+        ctx.bezierCurveTo(1.134, 17.943, 1.333, 18.929, 1.63, 19.811)
+        ctx.bezierCurveTo(1.927, 20.721, 2.4, 21.548, 2.9, 22.051)
+        ctx.bezierCurveTo(3.417, 22.573, 4.068, 23.001, 4.848, 23.269)
+        ctx.bezierCurveTo(5.794, 23.536, 6.878, 23.725, 8.171, 23.923)
+        ctx.bezierCurveTo(8.638, 22.988, 9.013, 23, 12, 23)
+        ctx.bezierCurveTo(14.987, 23, 15.362, 22.987, 16.535, 22.934)
+        ctx.bezierCurveTo(17.943, 22.866, 18.929, 22.667, 19.811, 22.37)
+        ctx.bezierCurveTo(20.721, 22.073, 21.858, 21.332, 22.37, 20.189)
+        ctx.bezierCurveTo(22.652, 19.249, 22.803, 18.158, 22.934, 17.535)
+        ctx.bezierCurveTo(22.988, 15.362, 23, 14.987, 23, 12)
+        ctx.bezierCurveTo(23, 9.013, 22.987, 8.638, 22.934, 7.465)
+        ctx.bezierCurveTo(22.866, 6.057, 22.667, 5.071, 22.37, 4.189)
+        ctx.bezierCurveTo(22.073, 3.279, 21.6, 2.452, 21.1, 1.949)
+        ctx.bezierCurveTo(20.583, 1.427, 19.932, 0.999, 19.152, 0.731)
+        ctx.bezierCurveTo(18.206, 0.464, 17.122, 0.275, 15.829, 0.077)
+        ctx.bezierCurveTo(15.362, 1.012, 14.987, 1, 12, 1)
         
-        // Top-right dot
-        ctx.fillStyle = '#ffffff'
-        ctx.beginPath()
-        ctx.arc(16.27, 7.73, 1.0, 0, 2 * Math.PI)
-        ctx.fill()
+        // Add the camera circle
+        ctx.moveTo(12, 6.351)
+        ctx.bezierCurveTo(9.055, 6.351, 6.649, 8.757, 6.351, 12)
+        ctx.bezierCurveTo(6.351, 14.945, 8.757, 17.649, 12, 17.649)
+        ctx.bezierCurveTo(14.945, 17.649, 17.649, 14.945, 17.649, 12)
+        ctx.bezierCurveTo(17.649, 9.055, 14.945, 6.351, 12, 6.351)
+        
+        ctx.moveTo(12, 15.667)
+        ctx.bezierCurveTo(9.423, 15.667, 7.333, 13.577, 7.333, 12)
+        ctx.bezierCurveTo(7.333, 9.423, 9.423, 7.333, 12, 7.333)
+        ctx.bezierCurveTo(13.577, 7.333, 15.667, 9.423, 15.667, 12)
+        ctx.bezierCurveTo(15.667, 13.577, 13.577, 15.667, 12, 15.667)
+        
+        // Add the dot in the top right
+        ctx.moveTo(17.872, 4.808)
+        ctx.bezierCurveTo(17.46, 4.808, 17.128, 5.14, 17.128, 5.552)
+        ctx.bezierCurveTo(17.128, 5.964, 17.46, 6.296, 17.872, 6.296)
+        ctx.bezierCurveTo(18.284, 6.296, 18.616, 5.964, 18.616, 5.552)
+        ctx.bezierCurveTo(18.616, 5.14, 18.284, 4.808, 17.872, 4.808)
+        
+        // Apply a more accurate gradient fill
+        const gradient = ctx.createLinearGradient(1, 1, 23, 23);
+        gradient.addColorStop(0, '#FFDC80');
+        gradient.addColorStop(0.1, '#FCAF45');
+        gradient.addColorStop(0.2, '#F77737');
+        gradient.addColorStop(0.5, '#F56040');
+        gradient.addColorStop(0.75, '#FD1D1D');
+        gradient.addColorStop(0.9, '#C13584');
+        gradient.addColorStop(1, '#833AB4');
+        
+        ctx.fillStyle = gradient;
+        ctx.fill();
         break
         
       case 'youtube':
@@ -593,14 +697,14 @@ export default function ShareButton({
         // Create a File object
         const file = new File([blob], 'calendar.png', { type: 'image/png' })
         
-        // For Twitter, we'll open a compose window with prefilled text
+        // For X (formerly Twitter), we'll open a compose window with prefilled text
         const text = `Check out my consistency streak! ${username}'s Calendar`
         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
         
-        // Open Twitter in a new tab
+        // Open X in a new tab
         window.open(url, '_blank')
         
-        // Also download the image since Twitter doesn't accept direct file uploads through the intent API
+        // Also download the image since X doesn't accept direct file uploads through the intent API
         const downloadLink = document.createElement('a')
         downloadLink.href = capturedImage
         downloadLink.download = 'consistency-calendar.png'
@@ -662,6 +766,20 @@ export default function ShareButton({
     setShowShareOptions(false)
   }
   
+  // Helper function to adjust colors for gradients
+  const adjustColor = (hex: string, amount: number): string => {
+    // Remove # if present
+    hex = hex.replace('#', '')
+    
+    // Parse the color components
+    const r = Math.max(0, Math.min(255, parseInt(hex.substring(0, 2), 16) + amount))
+    const g = Math.max(0, Math.min(255, parseInt(hex.substring(2, 4), 16) + amount))
+    const b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount))
+    
+    // Convert back to hex
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+  }
+  
   return (
     <div className="relative">
       <button
@@ -706,20 +824,20 @@ export default function ShareButton({
             {/* Platform-specific sharing options */}
             <button
               onClick={shareToTwitter}
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-md transition-colors"
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             >
-              <svg className="w-5 h-5 mr-3 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.1 10.1 0 01-3.127 1.184 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+              <svg className="w-5 h-5 mr-3 text-black" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
               </svg>
-              Twitter
+              X
             </button>
             
             <button
               onClick={shareToInstagram}
               className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-pink-50 rounded-md transition-colors"
             >
-              <svg className="w-5 h-5 mr-3 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+              <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 24 24" width="24" height="24">
+                <path d="M12 2.982c2.937 0 3.285.011 4.445.064a6.087 6.087 0 0 1 2.042.379 3.408 3.408 0 0 1 1.265.823 3.408 3.408 0 0 1 .823 1.265 6.087 6.087 0 0 1 .379 2.042c.053 1.16.064 1.508.064 4.445s-.011 3.285-.064 4.445a6.087 6.087 0 0 1-.379 2.042 3.643 3.643 0 0 1-2.088 2.088 6.087 6.087 0 0 1-2.042.379c-1.16.053-1.508.064-4.445.064s-3.285-.011-4.445-.064a6.087 6.087 0 0 1-2.043-.379 3.408 3.408 0 0 1-1.264-.823 3.408 3.408 0 0 1-.823-1.265 6.087 6.087 0 0 1-.379-2.042c-.053-1.16-.064-1.508-.064-4.445s.011-3.285.064-4.445a6.087 6.087 0 0 1 .379-2.042 3.408 3.408 0 0 1 .823-1.265 3.408 3.408 0 0 1 1.265-.823 6.087 6.087 0 0 1 2.042-.379c1.16-.053 1.508-.064 4.445-.064M12 1c-2.987 0-3.362.013-4.535.066a8.074 8.074 0 0 0-2.67.511 5.392 5.392 0 0 0-1.949 1.27 5.392 5.392 0 0 0-1.269 1.948 8.074 8.074 0 0 0-.51 2.67C1.012 8.638 1 9.013 1 12s.013 3.362.066 4.535a8.074 8.074 0 0 0 .511 2.67 5.392 5.392 0 0 0 1.27 1.949 5.392 5.392 0 0 0 1.948 1.269 8.074 8.074 0 0 0 2.67.51C8.638 22.988 9.013 23 12 23s3.362-.013 4.535-.066a8.074 8.074 0 0 0 2.67-.511 5.625 5.625 0 0 0 3.218-3.218 8.074 8.074 0 0 0 .51-2.67C22.988 15.362 23 14.987 23 12s-.013-3.362-.066-4.535a8.074 8.074 0 0 0-.511-2.67 5.392 5.392 0 0 0-1.27-1.949 5.392 5.392 0 0 0-1.948-1.269 8.074 8.074 0 0 0-2.67-.51C15.362 1.012 14.987 1 12 1Zm0 5.351A5.649 5.649 0 1 0 17.649 12 5.649 5.649 0 0 0 12 6.351Zm0 9.316A3.667 3.667 0 1 1 15.667 12 3.667 3.667 0 0 1 12 15.667Zm5.872-10.859a1.32 1.32 0 1 0 1.32 1.32 1.32 1.32 0 0 0-1.32-1.32Z"></path>
               </svg>
               Instagram
             </button>
