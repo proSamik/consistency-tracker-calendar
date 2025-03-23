@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { format, isSameDay } from 'date-fns'
+import React, { Dispatch, SetStateAction } from 'react'
+import { format, isSameDay, isSameMonth, isToday } from 'date-fns'
 
 /**
  * Component that displays the calendar grid with days and months
@@ -16,7 +16,10 @@ export default function CalendarGrid({
   toLocalDate,
   handleDayClick,
   loading,
-  platform = 'all'
+  platform = 'all',
+  todayRef,
+  currentMonth,
+  setCurrentMonth
 }: {
   months: { name: string; date: Date }[]
   weeks: Date[][]
@@ -27,6 +30,9 @@ export default function CalendarGrid({
   handleDayClick: (date: Date) => void
   loading: boolean
   platform?: 'github' | 'twitter' | 'instagram' | 'youtube' | 'all'
+  todayRef?: React.RefObject<HTMLDivElement>
+  currentMonth?: number
+  setCurrentMonth?: Dispatch<SetStateAction<number>>
 }) {
   if (loading) {
     return (
@@ -103,11 +109,16 @@ export default function CalendarGrid({
                   
                   const count = activity ? activity.count : 0
                   const colorClass = getCellColor(count)
+                  const isCurrentDay = isToday(day)
+
+                  // Add special ref to today's cell for scrolling
+                  const cellRef = isCurrentDay ? todayRef : null
                   
                   return (
                     <div
                       key={dayIndex}
-                      className={`w-5 h-5 rounded-xs ${colorClass} cursor-pointer hover:opacity-100 hover:shadow-md hover:shadow-gray-400/30 transform hover:scale-105 transition-all duration-150`}
+                      ref={cellRef}
+                      className={`w-5 h-5 rounded-xs ${colorClass} cursor-pointer hover:opacity-100 hover:shadow-md hover:shadow-gray-400/30 transform hover:scale-105 transition-all duration-150 ${isCurrentDay ? 'ring-2 ring-offset-1 ring-purple-600' : ''}`}
                       title={`${format(day, 'MMM d, yyyy')}: ${count} ${getActivityTerm(count)}`}
                       onClick={() => handleDayClick(day)}
                     ></div>
