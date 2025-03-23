@@ -620,7 +620,7 @@ export default function ConsistencyCalendar({
         />
         
         {/* Add share button */}
-        <div className="mt-2 sm:mt-0">
+        <div className="mt-2 sm:mt-0 relative">
           <ShareButton
             username={username}
             platform={platform}
