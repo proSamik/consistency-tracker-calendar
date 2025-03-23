@@ -57,7 +57,7 @@ export default function StreakWidget({
         <div className="p-4 flex flex-col items-center justify-center">
           <div className="text-3xl font-bold">{streakInfo.currentStreak + streakInfo.longestStreak}</div>
           <div className="text-sm text-gray-600">Total {getConsistencyTerm()}</div>
-          <div className="text-xs text-gray-500">3 Nov 2020 - Present</div>
+          <div className="text-xs text-gray-500">1 Jan 2025 - Present</div>
         </div>
 
         {/* Current Streak */}
