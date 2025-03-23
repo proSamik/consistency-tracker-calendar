@@ -9,25 +9,111 @@ import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 /**
+ * Validates a username based on the following rules:
+ * - Cannot start with a number
+ * - Cannot contain special characters
+ * - Should be lowercase letters followed by optional numbers
+ */
+function validateUsername(username: string): string | null {
+  if (!username.trim()) {
+    return 'Username is required'
+  }
+  
+  // Check if username starts with a number
+  if (/^[0-9]/.test(username)) {
+    return 'Username cannot start with a number'
+  }
+  
+  // Check if username contains only lowercase letters and numbers
+  if (!/^[a-z][a-z0-9]*$/.test(username)) {
+    return 'Username can only contain lowercase letters and numbers'
+  }
+  
+  return null
+}
+
+/**
+ * Validates a password based on the following rules:
+ * - At least 8 characters
+ * - Contains at least one lowercase letter
+ * - Contains at least one uppercase letter
+ * - Contains at least one number
+ * - Contains at least one special character
+ */
+function validatePassword(password: string): string | null {
+  if (!password) {
+    return 'Password is required'
+  }
+  
+  // Check length
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters'
+  }
+  
+  // Check for lowercase letter
+  if (!/[a-z]/.test(password)) {
+    return 'Password must include a lowercase letter'
+  }
+  
+  // Check for uppercase letter
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must include an uppercase letter'
+  }
+  
+  // Check for number
+  if (!/[0-9]/.test(password)) {
+    return 'Password must include a number'
+  }
+  
+  // Check for special character
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return 'Password must include a special character'
+  }
+  
+  return null
+}
+
+/**
  * Handles login form submission
  * Signs in a user with email and password
  */
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
+  // Extract and validate credentials from form data
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  
+  // Validate required fields
+  if (!email || !password) {
+    redirect('/login?error=missing_fields')
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  // Attempt to sign in
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
 
+  // Handle auth errors with specific redirects
   if (error) {
-    redirect('/error')
+    console.error('Login error:', error)
+    
+    if (error.message.includes('Invalid login credentials')) {
+      redirect('/login?error=invalid_credentials')
+    } else if (error.message.includes('email not confirmed')) {
+      redirect('/login?error=email_not_verified')
+    } else if (error.message.includes('too many requests')) {
+      redirect('/login?error=too_many_attempts')
+    } else if (error.message.includes('invalid email')) {
+      redirect('/login?error=invalid_email')
+    }
+    
+    // Generic error fallback
+    redirect('/login?error=auth_error')
   }
 
+  // Success flow
   revalidatePath('/', 'layout')
   redirect('/')
 }
@@ -53,7 +139,19 @@ export async function signup(formData: FormData) {
   
   // Validate required fields
   if (!email || !password || !username) {
-    redirect('/error?message=Missing+required+fields')
+    redirect('/login?error=missing_fields')
+  }
+  
+  // Validate username format
+  const usernameError = validateUsername(username)
+  if (usernameError) {
+    redirect(`/login?error=invalid_username&details=${encodeURIComponent(usernameError)}`)
+  }
+  
+  // Validate password complexity
+  const passwordError = validatePassword(password)
+  if (passwordError) {
+    redirect(`/login?error=weak_password&details=${encodeURIComponent(passwordError)}`)
   }
   
   // Check if username is already taken with retry logic
@@ -74,11 +172,28 @@ export async function signup(formData: FormData) {
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        username,
+        full_name: fullName || '',
+      }
+    }
   })
 
   if (error || !authData.user) {
     console.error('Signup error:', error)
-    redirect('/error')
+    
+    // Handle specific auth errors
+    if (error?.message.includes('already registered')) {
+      redirect('/login?error=email_in_use')
+    } else if (error?.message.includes('password')) {
+      redirect('/login?error=invalid_password')
+    } else if (error?.message.includes('invalid email')) {
+      redirect('/login?error=invalid_email')
+    }
+    
+    // Generic error fallback
+    redirect('/login?error=signup_failed')
   }
 
   try {
@@ -109,7 +224,8 @@ export async function signup(formData: FormData) {
   } catch (dbError) {
     console.error('Error creating user profile:', dbError)
     // Continue with the signup process even if profile creation fails
-    // We'll attempt to create it again on first dashboard access
+    // We'll handle this in a safer way
+    redirect('/login?error=profile_creation_failed')
   }
 
   revalidatePath('/', 'layout')
