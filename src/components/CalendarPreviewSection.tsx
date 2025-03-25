@@ -1,10 +1,11 @@
+import React from 'react';
 import Link from 'next/link';
 
 /**
  * Calendar preview component showing the calendar visualization
  * and related descriptive content
  */
-export default function CalendarPreviewSection(): JSX.Element {
+export default function CalendarPreviewSection(): React.ReactElement {
   return (
     <div className="py-16 bg-gray-50">
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-16">
