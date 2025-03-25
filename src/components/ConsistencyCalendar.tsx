@@ -162,8 +162,6 @@ export default function ConsistencyCalendar({
       setLoading(true);
       
       try {
-        console.log(`Fetching activities for ${username} from ${dateRange.formattedStartDate} to ${dateRange.formattedEndDate}`);
-        
         // Build URL with all parameters
         const url = new URL(`/api/activities`, window.location.origin);
         url.searchParams.append('username', username);
@@ -198,7 +196,6 @@ export default function ConsistencyCalendar({
         if (!isMounted) return;
         
         if (response.status === 401) {
-          console.log('User not authenticated for activities. This is expected for public profiles.');
           setActivities([]);
           return;
         }
@@ -208,7 +205,6 @@ export default function ConsistencyCalendar({
         }
         
         const data = await response.json();
-        console.log('Loaded activities:', data);
         
         if (isMounted) {
           // Only update state if component is still mounted
@@ -220,11 +216,9 @@ export default function ConsistencyCalendar({
         
         // Don't set error state if the request was aborted
         if (err instanceof Error && err.name === 'AbortError') {
-          console.log('Activities fetch aborted');
           return;
         }
         
-        console.error('Error fetching activities:', err);
         setError('Failed to load activity data');
       } finally {
         // Always clear loading state if component is still mounted
@@ -255,7 +249,6 @@ export default function ConsistencyCalendar({
       
       // No need to duplicate the fetch logic here - the useEffect will handle it
     } catch (err: unknown) {
-      console.error('Error refreshing activities:', err);
       setError('Failed to refresh activity data');
       setLoading(false);
     }
@@ -279,7 +272,6 @@ export default function ConsistencyCalendar({
       
       // If 'all' is selected, sync all platforms
       if (syncPlatform === 'all') {
-        console.log(`Syncing all platforms sequentially for date: ${targetDate}`);
         
         // Clear activities first to force a refresh
         setActivities([]);
@@ -303,8 +295,6 @@ export default function ConsistencyCalendar({
               body.platform = platformToSync;
             }
             
-            console.log(`Syncing ${platformToSync} for date ${targetDate} with timezone offset: ${timezoneOffsetMinutes} minutes`);
-            
             const response = await fetch(endpoint, {
               method: 'POST',
               headers: {
@@ -316,14 +306,10 @@ export default function ConsistencyCalendar({
             
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({}));
-              console.error(`Error syncing ${platformToSync}: ${errorData.error || response.status}`);
               // Continue with other platforms even if one fails
               continue;
             }
-            
-            console.log(`Successfully synced ${platformToSync} data for date ${targetDate}`);
           } catch (err) {
-            console.error(`Error syncing ${platformToSync}:`, err);
             // Continue with other platforms even if one fails
             continue;
           }
@@ -357,8 +343,6 @@ export default function ConsistencyCalendar({
         body.platform = syncPlatform;
       }
       
-      console.log(`Syncing ${syncPlatform} for date ${targetDate} with timezone offset: ${timezoneOffsetMinutes} minutes`);
-      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -372,8 +356,6 @@ export default function ConsistencyCalendar({
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Failed to sync ${syncPlatform} data (${response.status})`);
       }
-      
-      console.log(`Successfully synced ${syncPlatform} data for date ${targetDate}`);
       
       // Clear activities first to force a refresh
       setActivities([]);
@@ -389,8 +371,6 @@ export default function ConsistencyCalendar({
       }, 1000); // Increase delay to ensure data is ready
       
     } catch (err: unknown) {
-      console.error(`Error syncing ${syncPlatform}:`, err);
-      
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (errorMessage.includes('not configured')) {
         setError(`${syncPlatform} username is not configured in your profile`);
