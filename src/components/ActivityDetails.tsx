@@ -118,11 +118,9 @@ export default function ActivityDetails({
         }
         
         const data = await response.json()
-        console.log('Detailed activity data:', data)
         
         setActivityData(data.activity || null)
       } catch (err) {
-        console.error('Error fetching activity details:', err)
         setError('Failed to load activity details')
       } finally {
         setLoading(false)
@@ -197,7 +195,6 @@ export default function ActivityDetails({
       }
       
     } catch (err) {
-      console.error(`Error syncing ${platform}:`, err)
       setError(`Failed to sync ${platform} data`)
     } finally {
       setSyncing(false)
