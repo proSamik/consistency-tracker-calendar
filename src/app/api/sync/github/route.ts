@@ -46,7 +46,6 @@ const GITHUB_CONTRIBUTIONS_QUERY = `
     }
   }
 `
-
 /**
  * API route to fetch GitHub contributions and sync to the database
  * @param request The incoming request
@@ -133,8 +132,6 @@ export async function POST(request: NextRequest) {
     const toDate = new Date(targetDate)
     toDate.setHours(23, 59, 59, 999)
     
-    console.log(`Syncing GitHub activities for user: ${userData.github_username}, date: ${formattedDate}`);
-    
     // Query GitHub API
     const response = await fetch('https://api.github.com/graphql', {
       method: 'POST',
@@ -156,8 +153,6 @@ export async function POST(request: NextRequest) {
     // Handle GitHub API errors
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`GitHub API error (${response.status}): ${errorText}`);
-      
       let errorMessage = `GitHub API error: ${response.statusText}`;
       
       if (response.status === 401) {
@@ -178,7 +173,6 @@ export async function POST(request: NextRequest) {
     
     // Check for GraphQL API errors
     if (githubData.errors) {
-      console.error('GitHub GraphQL API errors:', githubData.errors);
       const errorMessage = githubData.errors.map((e: any) => e.message).join(', ');
       return NextResponse.json(
         { error: `GitHub GraphQL API error: ${errorMessage}` },
