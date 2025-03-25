@@ -26,6 +26,22 @@ export default function HomePage() {
                 Dashboard
               </Link>
             </div>
+            
+            {/* Video Demo Section */}
+            <div className="mt-12 max-w-3xl mx-auto">
+              <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ paddingBottom: '56.25%' }}>
+                <iframe 
+                  className="absolute top-0 left-0 w-full h-full border-0"
+                  src="https://www.youtube.com/embed/your-video-id" 
+                  title="Consistency Calendar Demo"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowFullScreen>
+                </iframe>
+              </div>
+              <p className="mt-3 text-sm text-gray-500">
+                Watch our demo to see how the Consistency Calendar works
+              </p>
+            </div>
           </div>
         </div>
         </div>
