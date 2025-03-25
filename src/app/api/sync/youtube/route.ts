@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
       const cronSecret = process.env.CRON_SECRET
       
       if (!cronSecret) {
-        console.error('CRON_SECRET environment variable is not set')
         return NextResponse.json(
           { error: 'Server configuration error: CRON_SECRET is not configured.' }, 
           { status: 500 }
@@ -43,7 +42,6 @@ export async function POST(request: NextRequest) {
       }
       
       if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== cronSecret) {
-        console.error('Unauthorized attempt to access YouTube API with userId')
         return NextResponse.json(
           { error: 'Unauthorized. Cron secret required for userId parameter.' }, 
           { status: 401 }
@@ -170,14 +168,12 @@ export async function POST(request: NextRequest) {
         data: platformData
       })
     } catch (error) {
-      console.error('Error syncing YouTube data:', error)
       return NextResponse.json(
         { error: 'Failed to sync YouTube data' },
         { status: 500 }
       )
     }
   } catch (error) {
-    console.error('Error syncing YouTube data:', error)
     return NextResponse.json(
       { error: 'Failed to sync YouTube data' },
       { status: 500 }
@@ -198,7 +194,6 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
   }
   
   const formattedDate = formatDate(date)
-  console.log(`Fetching YouTube data for username/handle: ${usernameOrHandle}, date: ${formattedDate}`)
   
   // Step 1: Get the channel ID from the username/handle
   let channelId
@@ -206,20 +201,16 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
   if (usernameOrHandle.startsWith('UC')) {
     // It's already a channel ID
     channelId = usernameOrHandle
-    console.log(`Using provided channel ID: ${channelId}`)
   } else {
     // Try to get channel ID from handle
     const handle = usernameOrHandle.startsWith('@') ? usernameOrHandle : `@${usernameOrHandle}`
-    console.log(`Looking up channel ID for handle: ${handle}`)
     
     try {
       const handleLookupUrl = `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${handle}&key=${apiKey}`
       const response = await fetch(handleLookupUrl)
-      console.log(`YouTube API response status: ${response.status}`)
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText)
-        console.error(`YouTube API error looking up channel by handle (${response.status}): ${errorText}`)
         throw new Error(`YouTube API error looking up channel by handle: ${response.statusText}`)
       }
       
@@ -227,7 +218,6 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
       
       if (!data.items || data.items.length === 0) {
         // Try alternative lookup by username if handle lookup fails
-        console.log(`No channel found for handle ${handle}, trying forUsername lookup`)
         const username = usernameOrHandle.replace('@', '')
         const usernameLookupUrl = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${apiKey}`
         
@@ -236,7 +226,6 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
           
           if (!usernameResponse.ok) {
             const errorText = await usernameResponse.text().catch(() => usernameResponse.statusText)
-            console.error(`YouTube API error looking up channel by username (${usernameResponse.status}): ${errorText}`)
             throw new Error(`YouTube API error looking up channel by username: ${usernameResponse.statusText}`)
           }
           
@@ -244,7 +233,6 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
           
           if (!usernameData.items || usernameData.items.length === 0) {
             // As a last resort, try a search
-            console.log(`No channel found for username ${username}, trying search`)
             const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(username)}&type=channel&maxResults=1&key=${apiKey}`
             
             const searchResponse = await fetch(searchUrl)
@@ -260,27 +248,21 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
             }
             
             channelId = searchData.items[0].id.channelId
-            console.log(`Found channel ID ${channelId} through search`)
           } else {
             channelId = usernameData.items[0].id
           }
         } catch (error) {
-          console.error('Error looking up YouTube channel by username:', error)
           throw error
         }
       } else {
         channelId = data.items[0].id
       }
     } catch (error) {
-      console.error('Error looking up YouTube channel:', error)
       throw new Error(`Failed to get YouTube channel ID for ${usernameOrHandle}: ${error}`)
     }
   }
   
-  console.log(`Found YouTube channel ID: ${channelId}`)
-  
   // Step 2: Get the videos from the channel
-  console.log(`Fetching videos for YouTube channel ID: ${channelId}`)
   
   // Step 2: Calculate the time range for the published date
   const targetDate = new Date(formattedDate)
@@ -299,7 +281,6 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
     
     if (!videoResponse.ok) {
       const errorText = await videoResponse.text().catch(() => videoResponse.statusText)
-      console.error(`YouTube API error fetching videos (${videoResponse.status}): ${errorText}`)
       throw new Error(`YouTube API error fetching videos: ${videoResponse.statusText}`)
     }
     
@@ -329,7 +310,6 @@ async function fetchYouTubeData(usernameOrHandle: string, date: Date) {
       videos,
     }
   } catch (error) {
-    console.error('Error fetching YouTube videos:', error)
     throw error
   }
 }
