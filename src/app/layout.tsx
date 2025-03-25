@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 /**
  * Root layout component that wraps all pages
- * Includes global navigation bar
+ * Includes global navigation bar and ensures full viewport coverage
  */
 export default function RootLayout({
   children,
@@ -20,10 +20,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className} suppressHydrationWarning={true}>
+    <html lang="en" className="h-full bg-white">
+      <body 
+        className={`${inter.className} min-h-screen w-full overflow-x-hidden bg-gradient-to-b from-indigo-50 to-white`} 
+        suppressHydrationWarning={true}
+      >
         <Navigation />
-        <main>{children}</main>
+        <main className="min-h-[calc(100vh-64px)]">{children}</main>
       </body>
     </html>
   );
