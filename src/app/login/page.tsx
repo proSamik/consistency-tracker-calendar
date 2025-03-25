@@ -30,7 +30,6 @@ const ERROR_MESSAGES: Record<string, string> = {
  * Inner login form component that uses search params
  */
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [isSignupMode, setIsSignupMode] = useState(false)
   const [usernameError, setUsernameError] = useState<string | null>(null)
