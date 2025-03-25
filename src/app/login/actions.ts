@@ -97,7 +97,7 @@ export async function login(formData: FormData) {
 
   // Handle auth errors with specific redirects
   if (error) {
-    console.error('Login error:', error)
+
     
     if (error.message.includes('Invalid login credentials')) {
       redirect('/login?error=invalid_credentials')
@@ -115,7 +115,7 @@ export async function login(formData: FormData) {
 
   // Success flow
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect('/dashboard')
 }
 
 /**
