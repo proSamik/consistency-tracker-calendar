@@ -2,14 +2,32 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
 
 /**
- * Navigation component without auth verification
+ * Navigation component with authentication awareness
+ * Shows different navigation options based on user authentication status
  */
 export default function Navigation() {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  
+  /**
+   * Check if user is authenticated on component mount
+   */
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const supabase = createClient()
+      const { data } = await supabase.auth.getUser()
+      setIsLoggedIn(!!data.user)
+      setIsLoading(false)
+    }
+    
+    checkAuthStatus()
+  }, [])
   
   /**
    * Toggle mobile menu open/closed
@@ -40,27 +58,42 @@ export default function Navigation() {
             Home
           </Link>
           
-          <Link
-            href="/dashboard"
-            className={`rounded-md ${
-              pathname === '/dashboard'
-                ? 'bg-indigo-700 text-white'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700'
-            } px-4 py-2 text-sm font-medium`}
-          >
-            Dashboard
-          </Link>
+          {!isLoading && isLoggedIn && (
+            <Link
+              href="/dashboard"
+              className={`rounded-md ${
+                pathname === '/dashboard'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              } px-4 py-2 text-sm font-medium`}
+            >
+              Dashboard
+            </Link>
+          )}
 
-          <Link
-            href="/login"
-            className={`rounded-md ${
-              pathname === '/login'
-                ? 'bg-indigo-700 text-white'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700'
-            } px-4 py-2 text-sm font-medium`}
-          >
-            Sign In
-          </Link>
+          {!isLoading && (
+            isLoggedIn ? (
+              <form action="/auth/signout" method="post">
+                <button 
+                  type="submit"
+                  className="rounded-md bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 text-sm font-medium"
+                >
+                  Sign Out
+                </button>
+              </form>
+            ) : (
+              <Link
+                href="/login"
+                className={`rounded-md ${
+                  pathname === '/login'
+                    ? 'bg-indigo-700 text-white'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                } px-4 py-2 text-sm font-medium`}
+              >
+                Sign In
+              </Link>
+            )
+          )}
         </nav>
         
         {/* Mobile Hamburger Button */}
@@ -111,29 +144,45 @@ export default function Navigation() {
               Home
             </Link>
             
-            <Link
-              href="/dashboard"
-              className={`block rounded-md ${
-                pathname === '/dashboard'
-                  ? 'bg-indigo-700 text-white'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-              } px-4 py-2 text-sm font-medium`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
+            {!isLoading && isLoggedIn && (
+              <Link
+                href="/dashboard"
+                className={`block rounded-md ${
+                  pathname === '/dashboard'
+                    ? 'bg-indigo-700 text-white'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                } px-4 py-2 text-sm font-medium`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+            )}
 
-            <Link
-              href="/login"
-              className={`block rounded-md ${
-                pathname === '/login'
-                  ? 'bg-indigo-700 text-white'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-              } px-4 py-2 text-sm font-medium`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Sign In
-            </Link>
+            {!isLoading && (
+              isLoggedIn ? (
+                <form action="/auth/signout" method="post">
+                  <button 
+                    type="submit"
+                    className="block w-full text-left rounded-md bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 text-sm font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign Out
+                  </button>
+                </form>
+              ) : (
+                <Link
+                  href="/login"
+                  className={`block rounded-md ${
+                    pathname === '/login'
+                      ? 'bg-indigo-700 text-white'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  } px-4 py-2 text-sm font-medium`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
+              )
+            )}
           </div>
         </div>
       )}
