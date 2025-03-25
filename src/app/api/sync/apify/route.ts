@@ -60,17 +60,7 @@ export async function POST(request: NextRequest) {
     // Get user's timezone offset from the request headers
     const timezoneOffset = request.headers.get('x-timezone-offset') || '0';
     const userTimezoneOffsetMinutes = parseInt(timezoneOffset, 10) || 0;
-    
-    console.log(`User timezone offset: ${userTimezoneOffsetMinutes} minutes from UTC`);
-    
-    // For context: negative offset means west of UTC (e.g., -330 for IST which is UTC+5:30)
-    // browser's getTimezoneOffset() returns the opposite of what we might expect
-    const timezoneDesc = userTimezoneOffsetMinutes < 0 
-      ? `UTC+${Math.abs(userTimezoneOffsetMinutes/60)}`  // East of UTC
-      : `UTC-${userTimezoneOffsetMinutes/60}`;           // West of UTC
-      
-    console.log(`User timezone: ${timezoneDesc}`);
-    
+
     if (!platform || !isPlatform(platform)) {
       return NextResponse.json(
         { error: 'Invalid or missing platform. Must be twitter or instagram' },
@@ -82,24 +72,13 @@ export async function POST(request: NextRequest) {
     let targetDate: Date;
     if (date) {
       targetDate = parseISO(date);
-      console.log(`Using provided date: ${date}, parsed as: ${formatDate(targetDate)}`);
     } else {
       // Use current date without adjustment
       targetDate = new Date();
-      console.log(`Using current date: ${formatDate(targetDate)}`);
     }
     
     // Format the target date for display and database storage
     const formattedDate = formatDate(targetDate);
-    console.log(`Target date for API and database: ${formattedDate}`);
-    
-    // For Instagram debugging, show UTC time as well
-    if (platform === 'instagram') {
-      // Calculate what this date would be in UTC (for debugging Instagram API expectations)
-      const utcDate = new Date(targetDate.getTime() + (userTimezoneOffsetMinutes * 60000));
-      console.log(`Instagram: This date in UTC is: ${formatDate(utcDate)} (${utcDate.toISOString()})`);
-      console.log(`Instagram: When API returns UTC timestamp like 2025-03-21T19:37:41.000Z, it will be converted to local: ${formatDate(targetDate)}`);
-    }
     
     // Get user profile data with social media usernames
     const db = createDbClient()
@@ -150,11 +129,6 @@ export async function POST(request: NextRequest) {
 
     // Call appropriate Apify actor based on platform
     const platformData = await fetchPlatformData(platform, platformUsername, targetDate, apifyToken, userTimezoneOffsetMinutes)
-    
-    // Log Instagram actor output to terminal
-    if (platform === 'instagram') {
-      console.log('Instagram Actor Output:', platformData);
-    }
 
     // Update or insert activity data in the database
     await executeWithRetry(async () => {
@@ -232,7 +206,6 @@ export async function POST(request: NextRequest) {
       data: platformData
     })
   } catch (error) {
-    console.error('Error syncing social media data:', error)
     return NextResponse.json(
       { error: 'Failed to sync social media data' },
       { status: 500 }
@@ -269,20 +242,16 @@ async function fetchPlatformData(
     // Twitter API works with UTC dates, so adjust the user's local date to UTC
     const utcDate = new Date(date.getTime() + (userTimezoneOffsetMinutes * 60000));
     formattedDate = formatDate(utcDate);
-    console.log(`Twitter: Using UTC-adjusted date for API: ${formattedDate} (original local: ${userLocalDateString})`);
   } else if (platform === 'instagram') {
     // Instagram API uses UTC dates but we'll filter locally after fetching
     // For Instagram, we need to check a wider date range to account for timezone differences
     // So we use the previous day as the cutoff to ensure we capture posts in all timezones
     const instagramDate = subDays(date, 1);
     formattedDate = formatDate(instagramDate);
-    console.log(`Instagram: Using previous day as cutoff for API: ${formattedDate}, will filter to ${userLocalDateString} after fetching`);
   } else {
     // Default: use the local date as is
     formattedDate = formatDate(date);
   }
-  
-  console.log(`Starting Apify actor run for ${platform}, actor: ${actorId}, username: ${username}, API date parameter: ${formattedDate}`)
   
   let input = {}
   
@@ -316,10 +285,6 @@ async function fetchPlatformData(
   
   try {
     // Call Apify API to start the actor and wait for results
-    console.log(`Calling Apify API with actor ID: ${actorId}`)
-    console.log(`Input data:`, JSON.stringify(input))
-    
-    // Important: Do not wrap the input data inside another object
     const startResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyToken}`, {
       method: 'POST',
       headers: {
@@ -331,7 +296,6 @@ async function fetchPlatformData(
     
     if (!startResponse.ok) {
       const errorText = await startResponse.text().catch(() => startResponse.statusText)
-      console.error(`Apify error starting actor (${startResponse.status}): ${errorText}`)
       
       if (startResponse.status === 404) {
         throw new Error(`Apify actor ID '${actorId}' not found. The actor may have been renamed or removed.`)
@@ -345,12 +309,10 @@ async function fetchPlatformData(
     const startData = await startResponse.json()
     
     if (!startData.data || !startData.data.id) {
-      console.error('Invalid response from Apify:', startData)
       throw new Error('Invalid response from Apify when starting the actor run')
     }
     
     const runId = startData.data.id
-    console.log(`Apify actor run started with ID: ${runId}`)
     
     // Poll for completion
     const maxAttempts = 30
@@ -361,25 +323,20 @@ async function fetchPlatformData(
       await new Promise(resolve => setTimeout(resolve, pollInterval))
       
       // Check run status
-      console.log(`Polling run status, attempt ${attempt + 1}/${maxAttempts}`)
       const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyToken}`)
       
       if (!statusResponse.ok) {
         const errorText = await statusResponse.text().catch(() => statusResponse.statusText)
-        console.error(`Apify error checking run status (${statusResponse.status}): ${errorText}`)
         throw new Error(`Apify error checking run status: ${statusResponse.statusText}`)
       }
       
       const statusData = await statusResponse.json()
-      console.log(`Current run status: ${statusData.data.status}`)
       
       if (['SUCCEEDED', 'FINISHED'].includes(statusData.data.status)) {
         // Get dataset items
         const datasetId = statusData.data.defaultDatasetId
-        console.log(`Run completed successfully. Fetching results from dataset: ${datasetId}`)
         
         if (!datasetId) {
-          console.error('No dataset ID in the response:', statusData)
           throw new Error('No dataset ID in the Apify response')
         }
         
@@ -387,22 +344,17 @@ async function fetchPlatformData(
         
         if (!itemsResponse.ok) {
           const errorText = await itemsResponse.text().catch(() => itemsResponse.statusText)
-          console.error(`Apify error fetching dataset items (${itemsResponse.status}): ${errorText}`)
           throw new Error(`Apify error fetching dataset items: ${itemsResponse.statusText}`)
         }
         
         const items = await itemsResponse.json()
-        console.log(`Retrieved ${items.length} items from dataset`)
-        console.log('Instagram Actor Output:', items);
         
         // Use the user's local date for filtering, not the UTC-adjusted date
         return formatPlatformData(platform, items, userLocalDateString, userTimezoneOffsetMinutes)
       }
       
       if (['FAILED', 'ABORTED', 'TIMED_OUT'].includes(statusData.data.status)) {
-        console.error(`Apify actor run failed with status: ${statusData.data.status}`)
         if (statusData.data.errorMessage) {
-          console.error(`Error message: ${statusData.data.errorMessage}`)
           throw new Error(`Apify actor run failed: ${statusData.data.errorMessage}`)
         }
         throw new Error(`Apify actor run failed with status: ${statusData.data.status}`)
@@ -411,7 +363,6 @@ async function fetchPlatformData(
     
     throw new Error('Apify actor run timed out after maximum polling attempts')
   } catch (error) {
-    console.error(`Error in fetchPlatformData for ${platform}:`, error)
     throw error
   }
 }
@@ -425,7 +376,6 @@ async function fetchPlatformData(
  * @returns Formatted platform data
  */
 function formatPlatformData(platform: string, items: any[], date: string, userTimezoneOffsetMinutes: number = 0) {
-  console.log(`Formatting data for ${platform} with ${items.length} items, target date: ${date} (user's local date)`)
   
   // Filter items by date if needed
   const filteredItems = items.filter(item => {
@@ -436,15 +386,10 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
       // Extract the date from the Twitter response
       if (item.created_at) {
         // Handle Twitter date format: "Fri Mar 21 20:33:52 +0000 2025"
-        // For Twitter comparison, we need to use the original target date, not the UTC-adjusted one
-        // that was sent to the API, as we're now working with the actual tweet dates
         const rawItemDate = new Date(item.created_at);
         const localItemDate = new Date(rawItemDate.getTime() - (userTimezoneOffsetMinutes * 60000));
         
         itemDate = localItemDate;
-        
-        // Additional logging for debugging Twitter date handling
-        console.log(`Twitter date: ${item.created_at}, raw UTC: ${formatDate(rawItemDate)}, local: ${formatDate(localItemDate)}, target: ${date}`);
       } else {
         itemDate = item.date || item.postedAt || item.createdAtFormatted || item.timestamp || item.createdAt;
       }
@@ -452,14 +397,7 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
       // Get only the date part in user's local timezone
       if (itemDate) {
         const itemDateString = formatDate(new Date(itemDate));
-        const result = itemDateString === date;
-        
-        if (result) {
-          console.log(`Found matching Twitter date: ${itemDateString} === ${date}`);
-          console.log(`Tweet text: ${item.full_text || item.text}`);
-        }
-        
-        return result;
+        return itemDateString === date;
       }
       
       return false;
@@ -479,25 +417,15 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
       const rawItemDate = new Date(itemDate);
       
       // Convert UTC timestamp to user's local timezone by subtracting the timezone offset
-      // userTimezoneOffsetMinutes is the offset in minutes, positive for east of UTC
       const localItemDate = new Date(rawItemDate.getTime() - (userTimezoneOffsetMinutes * 60000));
       const itemDateFormatted = formatDate(localItemDate);
       
-      console.log(`Instagram item: ${item.caption ? item.caption.substring(0, 30) + '...' : 'No caption'}`);
-      console.log(`Instagram date: ${itemDate}, raw UTC: ${formatDate(rawItemDate)}, adjusted local: ${itemDateFormatted}, target: ${date}`);
-      
       const result = itemDateFormatted === date;
-      if (result) {
-        console.log(`Found matching Instagram post for date: ${itemDateFormatted} === ${date}`);
-        console.log(`Post URL: ${item.url}`);
-      }
       return result;
     }
     
     return false;
   })
-  
-  console.log(`Filtered to ${filteredItems.length} items with date: ${date}`)
   
   switch (platform) {
     case 'twitter': {
@@ -519,8 +447,6 @@ function formatPlatformData(platform: string, items: any[], date: string, userTi
     }
     
     case 'instagram': {
-      console.log('Formatting Instagram data, filtered items:', filteredItems.length)
-      
       // Instagram API might return posts directly or might have a different structure
       const posts = filteredItems.map(item => {
         // Handle potential nested structures (Instagram API has changed formats several times)
