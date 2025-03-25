@@ -21,17 +21,11 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
     youtube_private: false,
     instagram_private: false
   })
-  
-  // Log the username received for debugging
-  useEffect(() => {
-    console.log(`PrivacyControls component initialized with username: ${username}`);
-  }, [username]);
 
   // Fetch current privacy settings on component mount
   useEffect(() => {
     async function fetchPrivacySettings() {
       if (!username) {
-        console.error('No username provided to PrivacyControls component');
         setError('No username available');
         setLoading(false);
         return;
@@ -41,13 +35,11 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
       setError(null)
       
       try {
-        console.log(`Fetching privacy settings for: ${username}`);
         const response = await fetch(`/api/privacy?username=${username}`)
         
         if (!response.ok) {
           if (response.status === 401) {
             // User not authenticated, show message but don't treat as error
-            console.log('Authentication required to view privacy settings')
             setLoading(false)
             return
           }
@@ -56,7 +48,6 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
         }
         
         const data = await response.json()
-        console.log('Received privacy settings:', data);
         
         // Handle both old and new privacy format
         if (data.privacy) {
@@ -76,7 +67,6 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
           }
         }
       } catch (err: unknown) {
-        console.error('Error fetching privacy settings:', err)
         setError('Failed to load privacy settings')
       } finally {
         setLoading(false)
@@ -91,7 +81,6 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
    */
   async function togglePrivacy(platformName: string) {
     if (!username) {
-      console.error('No username available for privacy toggle');
       setError('No username available');
       return;
     }
@@ -105,15 +94,11 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
     }))
     
     try {
-      console.log(`Toggling privacy for ${platformName} to ${!currentValue} for user ${username}`);
-      
       const payload = {
         username,
         platform: platformName,
         isPrivate: !currentValue
       };
-      
-      console.log('Sending payload:', payload);
       
       const response = await fetch('/api/privacy', {
         method: 'POST',
@@ -132,13 +117,9 @@ export default function PrivacyControls({ username, platform }: PrivacyControlsP
           [`${platformName}_private`]: currentValue
         }))
         
-        console.error('Privacy update failed:', responseData);
         throw new Error(responseData.error || responseData.detail || 'Failed to update privacy setting')
       }
-      
-      console.log(`${platformName} privacy setting updated successfully:`, responseData);
     } catch (err: unknown) {
-      console.error('Error updating privacy settings:', err)
       setError(err instanceof Error ? err.message : 'Failed to update privacy settings')
       
       // Error message will auto-clear after 5 seconds
