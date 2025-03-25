@@ -2,12 +2,21 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 /**
  * Navigation component without auth verification
  */
 export default function Navigation() {
   const pathname = usePathname()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  
+  /**
+   * Toggle mobile menu open/closed
+   */
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen)
+  }
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
@@ -18,7 +27,8 @@ export default function Navigation() {
           </Link>
         </div>
         
-        <nav className="flex items-center space-x-4">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center space-x-4">
           <Link 
             href="/" 
             className={`px-3 py-2 text-sm font-medium rounded-md ${
@@ -52,7 +62,81 @@ export default function Navigation() {
             Sign In
           </Link>
         </nav>
+        
+        {/* Mobile Hamburger Button */}
+        <button 
+          className="md:hidden p-2" 
+          onClick={toggleMenu}
+          aria-label="Toggle menu"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6 text-indigo-600" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            {isMenuOpen ? (
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M6 18L18 6M6 6l12 12" 
+              />
+            ) : (
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 6h16M4 12h16M4 18h16" 
+              />
+            )}
+          </svg>
+        </button>
       </div>
+      
+      {/* Mobile Menu */}
+      {isMenuOpen && (
+        <div className="md:hidden border-t border-gray-200 bg-white">
+          <div className="container mx-auto px-4 py-2 space-y-2">
+            <Link 
+              href="/" 
+              className={`block px-3 py-2 text-sm font-medium rounded-md ${
+                pathname === '/' 
+                  ? 'bg-indigo-100 text-indigo-700' 
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Home
+            </Link>
+            
+            <Link
+              href="/dashboard"
+              className={`block rounded-md ${
+                pathname === '/dashboard'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              } px-4 py-2 text-sm font-medium`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              href="/login"
+              className={`block rounded-md ${
+                pathname === '/login'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              } px-4 py-2 text-sm font-medium`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   )
 } 
